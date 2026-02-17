@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String    @id @default(cuid())
+  name        String
+  domain      String    @unique
+  website     String?
+  country     String?
+  sector      String?
+  size        String?
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contacts    Contact[]
+  signals     LeadSignal[]
+  lead        Lead?
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  email       String?
+  role        String?
+  sourceAgent String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model LeadSignal {
+  id               String   @id @default(cuid())
+  companyId        String
+  agentName        String
+  triggerType      String
+  rawData          Json
+  score_trigger    Float    @default(0)
+  score_probability Float   @default(0)
+  score_final      Float    @default(0)
+  probability      Float?
+  summary          String?
+  sourceUrl        String?
+  createdAt        DateTime @default(now())
+
+  company          Company  @relation(fields: [companyId], references: [id])
+}
+
+enum LeadStatus {
+  NEW
+  MQL
+  SQL
+  LOST
+}
+
+model Lead {
+  id                  String     @id @default(cuid())
+  companyId           String     @unique
+  status              LeadStatus @default(NEW)
+  marketingQualified  Boolean    @default(false)
+  salesQualified      Boolean    @default(false)
+  totalScore          Float      @default(0)
+  lastActivityDate    DateTime   @default(now())
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  company             Company    @relation(fields: [companyId], references: [id])
+  opportunities       Opportunity[]
+}
+
+enum OpportunityStage {
+  DISCOVERY
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Opportunity {
+  id             String           @id @default(cuid())
+  leadId         String
+  companyId      String
+  stage          OpportunityStage @default(DISCOVERY)
+  estimatedValue Float?
+  probability    Float?
+  owner          String?
+  createdAt      DateTime         @default(now())
+
+  lead           Lead             @relation(fields: [leadId], references: [id])
+}
