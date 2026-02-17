@@ -10,12 +10,12 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@prisma/client": "^5.10.0",
+    "@types/node": "^20.11.5",
     "dotenv": "^16.4.1",
     "fastify": "^4.26.1",
     "pino": "^8.19.0"
   },
   "devDependencies": {
-    "@types/node": "^20.11.5",
     "prisma": "^5.10.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
