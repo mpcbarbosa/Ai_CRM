@@ -1,74 +1,57 @@
-import { prisma } from '../lib/prisma';
-
-const MQL_THRESHOLD = Number(process.env.MQL_THRESHOLD) || 70;
-const SQL_THRESHOLD = Number(process.env.SQL_THRESHOLD) || 100;
-
-// Agent score weights
+// Scoring weights per agent and trigger type
 const AGENT_WEIGHTS: Record<string, number> = {
-  SAP_S4HANA_SectorInvestmentScanner_Daily: 15,
-  SAP_S4HANA_RFPScanner_Daily: 25,
-  SAP_S4HANA_ExpansionScanner_Daily: 20,
-  SAP_S4HANA_CLevelScanner_Daily: 20,
-  SAP_S4HANA_LeadScanner_Daily: 15,
-  SAP_S4HANA_LeadScoring_Excel: 30,
-  DEFAULT: 10,
+  'SAP_S4HANA_SectorInvestmentScanner_Daily': 15,
+  'SAP_S4HANA_RFPScanner_Daily': 25,
+  'SAP_S4HANA_ExpansionScanner_Daily': 20,
+  'SAP_S4HANA_CLevelScanner_Daily': 20,
+  'SAP_S4HANA_LeadScanner_Daily': 15,
+  'SAP_S4HANA_LeadScoring_Excel': 30,
 };
 
-export async function recalculateScore(companyId: string): Promise<number> {
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+const TRIGGER_WEIGHTS: Record<string, number> = {
+  'RFP_SIGNAL': 30,
+  'CLEVEL_CHANGE': 25,
+  'EXPANSION_SIGNAL': 20,
+  'SECTOR_INVESTMENT': 15,
+  'LEAD_SCAN': 15,
+  'EXCEL_SCORE': 30,
+  'GENERIC': 10,
+};
 
-  const signals = await prisma.leadSignal.findMany({
-    where: { companyId, createdAt: { gte: ninetyDaysAgo } },
-  });
-
-  const totalScore = signals.reduce((sum, signal) => {
-    return sum + signal.score_final;
-  }, 0);
-
-  return totalScore;
+export interface ScoreResult {
+  trigger: number;
+  probability: number;
+  final: number;
 }
 
-export async function updateLeadStatus(companyId: string, totalScore: number) {
-  const lead = await prisma.lead.findUnique({ where: { companyId } });
-  if (!lead) return;
+export function calculateScore(agentName: string, triggerType: string, rawData: any): ScoreResult {
+  const agentWeight = AGENT_WEIGHTS[agentName] || 10;
+  const triggerWeight = TRIGGER_WEIGHTS[triggerType] || 10;
+  
+  // Base score from agent + trigger
+  const baseScore = (agentWeight + triggerWeight) / 2;
+  
+  // Boost if raw data has enrichment signals
+  let boost = 0;
+  if (rawData.revenue || rawData.annualRevenue) boost += 5;
+  if (rawData.employees || rawData.headcount) boost += 3;
+  if (rawData.contactEmail || rawData.contactName) boost += 4;
+  if (rawData.urgency === 'HIGH' || rawData.priority === 'HIGH') boost += 8;
+  if (rawData.budget || rawData.budgetRange) boost += 6;
+  if (rawData.timeline || rawData.deadline) boost += 4;
+  
+  // Extract explicit score if agent provided one
+  const explicitScore = rawData.score || rawData.leadScore || rawData.qualityScore;
+  
+  const triggerScore = baseScore + boost;
+  const probabilityScore = explicitScore ? Math.min(100, Number(explicitScore)) : Math.min(100, triggerScore * 1.5);
+  const finalScore = explicitScore 
+    ? (triggerScore * 0.4 + Number(explicitScore) * 0.6)
+    : triggerScore;
 
-  let newStatus = lead.status;
-
-  if (totalScore >= SQL_THRESHOLD && lead.status !== 'SQL') {
-    newStatus = 'SQL';
-  } else if (totalScore >= MQL_THRESHOLD && lead.status === 'NEW') {
-    newStatus = 'MQL';
-  }
-
-  await prisma.lead.update({
-    where: { companyId },
-    data: {
-      totalScore,
-      status: newStatus,
-      marketingQualified: totalScore >= MQL_THRESHOLD,
-      lastActivityDate: new Date(),
-    },
-  });
-
-  // Auto-create Opportunity when SQL
-  if (newStatus === 'SQL' && lead.status !== 'SQL') {
-    await prisma.opportunity.create({
-      data: {
-        leadId: lead.id,
-        companyId,
-        stage: 'DISCOVERY',
-        probability: 25,
-      },
-    });
-  }
-
-  return newStatus;
-}
-
-export function calculateSignalScore(agentName: string, rawData: Record<string, unknown>): number {
-  const baseWeight = AGENT_WEIGHTS[agentName] || AGENT_WEIGHTS['DEFAULT'];
-  // Probability multiplier from agent data if available
-  const probability = (rawData.probability as number) || (rawData.score_probability as number) || 0.5;
-  return baseWeight * probability;
+  return {
+    trigger: Math.round(triggerScore * 10) / 10,
+    probability: Math.round(probabilityScore * 10) / 10,
+    final: Math.round(finalScore * 10) / 10,
+  };
 }
