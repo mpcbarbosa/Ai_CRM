@@ -1,142 +1,134 @@
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
-import { calculateSignalScore, recalculateScore, updateLeadStatus } from '../scoring/engine';
+import { calculateScore } from '../scoring/engine';
 
-const GobiiPayloadSchema = z.object({
-  agentName: z.string(),
-  triggerType: z.string(),
-  company: z.object({
-    name: z.string(),
-    domain: z.string().optional(),
-    website: z.string().optional(),
-    country: z.string().optional(),
-    sector: z.string().optional(),
-    size: z.string().optional(),
-    description: z.string().optional(),
-  }),
-  contact: z.object({
-    name: z.string().optional(),
-    email: z.string().optional(),
-    role: z.string().optional(),
-  }).optional(),
-  summary: z.string().optional(),
-  sourceUrl: z.string().optional(),
-  probability: z.number().optional(),
-  score_trigger: z.number().optional(),
-  score_probability: z.number().optional(),
-  rawData: z.record(z.unknown()).optional(),
-});
+// Agent name → trigger type mapping
+const AGENT_TRIGGER_MAP: Record<string, string> = {
+  'SAP_S4HANA_SectorInvestmentScanner_Daily': 'SECTOR_INVESTMENT',
+  'SAP_S4HANA_RFPScanner_Daily': 'RFP_SIGNAL',
+  'SAP_S4HANA_ExpansionScanner_Daily': 'EXPANSION_SIGNAL',
+  'SAP_S4HANA_CLevelScanner_Daily': 'CLEVEL_CHANGE',
+  'SAP_S4HANA_LeadScanner_Daily': 'LEAD_SCAN',
+  'SAP_S4HANA_LeadScoring_Excel': 'EXCEL_SCORE',
+};
 
 function normalizeDomain(domain?: string, name?: string): string {
-  if (domain) return domain.toLowerCase().replace(/^www\./, '');
-  // Fallback: normalize company name as domain key
-  return name!.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  if (domain) return domain.toLowerCase().replace(/^www\./, '').trim();
+  if (name) return name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').trim() + '.unknown';
+  return 'unknown-' + Date.now();
 }
 
 export async function ingestRoutes(app: FastifyInstance) {
-  app.post('/api/ingest/gobii', async (request, reply) => {
-    const parseResult = GobiiPayloadSchema.safeParse(request.body);
+  app.post('/api/ingest/gobii', async (req, reply) => {
+    const body = req.body as any;
+    const MQL_THRESHOLD = Number(process.env.MQL_THRESHOLD || 70);
 
-    if (!parseResult.success) {
-      logger.warn({ errors: parseResult.error.issues }, 'Invalid ingest payload');
-      return reply.status(400).send({ error: 'Invalid payload', details: parseResult.error.issues });
-    }
+    logger.info({ agent: body.agentName, company: body.companyName }, 'Ingest received');
 
-    const payload = parseResult.data;
-    const domain = normalizeDomain(payload.company.domain, payload.company.name);
+    // 1. Normalize
+    const domain = normalizeDomain(body.domain || body.companyDomain, body.companyName || body.name);
+    const agentName = body.agentName || 'UNKNOWN_AGENT';
+    const triggerType = AGENT_TRIGGER_MAP[agentName] || body.triggerType || 'GENERIC';
 
-    try {
-      // 1. Upsert Company (deduplicate by domain)
-      const company = await prisma.company.upsert({
-        where: { domain },
-        update: {
-          name: payload.company.name,
-          website: payload.company.website,
-          country: payload.company.country,
-          sector: payload.company.sector,
-          size: payload.company.size,
-          description: payload.company.description,
-          updatedAt: new Date(),
-        },
-        create: {
-          name: payload.company.name,
-          domain,
-          website: payload.company.website,
-          country: payload.company.country,
-          sector: payload.company.sector,
-          size: payload.company.size,
-          description: payload.company.description,
-        },
-      });
-
-      // 2. Upsert Contact if provided
-      if (payload.contact?.email) {
-        await prisma.contact.upsert({
-          where: { id: (await prisma.contact.findFirst({ where: { email: payload.contact.email, companyId: company.id } }))?.id || 'new' },
-          update: { role: payload.contact.role, sourceAgent: payload.agentName },
-          create: {
-            companyId: company.id,
-            name: payload.contact.name || '',
-            email: payload.contact.email,
-            role: payload.contact.role,
-            sourceAgent: payload.agentName,
-          },
-        });
+    // 2. Upsert Company (deduplicate by domain)
+    const company = await prisma.company.upsert({
+      where: { domain },
+      update: {
+        name: body.companyName || body.name || domain,
+        website: body.website || body.companyWebsite || undefined,
+        country: body.country || undefined,
+        sector: body.sector || body.industry || undefined,
+        size: body.companySize || body.size || undefined,
+        description: body.description || undefined,
+        updatedAt: new Date(),
+      },
+      create: {
+        domain,
+        name: body.companyName || body.name || domain,
+        website: body.website || body.companyWebsite || undefined,
+        country: body.country || undefined,
+        sector: body.sector || body.industry || undefined,
+        size: body.companySize || body.size || undefined,
+        description: body.description || undefined,
       }
+    });
 
-      // 3. Calculate signal score
-      const rawData = { ...payload.rawData, ...payload.company, probability: payload.probability };
-      const score_final = calculateSignalScore(payload.agentName, rawData);
-
-      // 4. Create LeadSignal (never lose raw data)
-      const signal = await prisma.leadSignal.create({
+    // 3. Create Contact if present
+    if (body.contactName || body.contactEmail) {
+      await prisma.contact.create({
         data: {
           companyId: company.id,
-          agentName: payload.agentName,
-          triggerType: payload.triggerType,
-          rawData: rawData as object,
-          score_trigger: payload.score_trigger || 0,
-          score_probability: payload.score_probability || payload.probability || 0,
-          score_final,
-          probability: payload.probability,
-          summary: payload.summary,
-          sourceUrl: payload.sourceUrl,
-        },
-      });
+          name: body.contactName || 'Unknown',
+          email: body.contactEmail || undefined,
+          role: body.contactRole || body.contactTitle || undefined,
+          sourceAgent: agentName,
+        }
+      }).catch(() => {}); // ignore duplicate contacts
+    }
 
-      // 5. Upsert Lead
-      await prisma.lead.upsert({
-        where: { companyId: company.id },
-        update: { lastActivityDate: new Date() },
-        create: { companyId: company.id },
-      });
+    // 4. Calculate scores
+    const scores = calculateScore(agentName, triggerType, body);
 
-      // 6. Recalculate total score and update status
-      const totalScore = await recalculateScore(company.id);
-      const newStatus = await updateLeadStatus(company.id, totalScore);
-
-      logger.info({
+    // 5. Create LeadSignal (always, never lose raw data)
+    const signal = await prisma.leadSignal.create({
+      data: {
         companyId: company.id,
-        domain,
-        agentName: payload.agentName,
-        score_final,
-        totalScore,
-        newStatus,
-      }, 'Lead signal ingested');
+        agentName,
+        triggerType,
+        rawData: body,
+        score_trigger: scores.trigger,
+        score_probability: scores.probability,
+        score_final: scores.final,
+        probability: scores.probability / 100,
+        summary: body.summary || body.description || null,
+        sourceUrl: body.sourceUrl || body.url || null,
+      }
+    });
 
-      return reply.status(201).send({
-        success: true,
-        companyId: company.id,
-        signalId: signal.id,
+    // 6. Compute cumulative score (last 90 days)
+    const since = new Date();
+    since.setDate(since.getDate() - 90);
+    const recentSignals = await prisma.leadSignal.findMany({
+      where: { companyId: company.id, createdAt: { gte: since } },
+      select: { score_final: true }
+    });
+    const totalScore = recentSignals.reduce((sum, s) => sum + s.score_final, 0);
+
+    // 7. Determine new lead status
+    const currentLead = await prisma.lead.findUnique({ where: { companyId: company.id } });
+    let newStatus: 'NEW' | 'MQL' | 'SQL' | 'LOST' = currentLead?.status as any || 'NEW';
+    
+    // Only auto-upgrade (never downgrade SQL/LOST)
+    if (newStatus !== 'SQL' && newStatus !== 'LOST') {
+      if (totalScore >= MQL_THRESHOLD) newStatus = 'MQL';
+    }
+
+    // 8. Upsert Lead
+    const lead = await prisma.lead.upsert({
+      where: { companyId: company.id },
+      update: {
         totalScore,
         status: newStatus,
-      });
+        marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
+        lastActivityDate: new Date(),
+        updatedAt: new Date(),
+      },
+      create: {
+        companyId: company.id,
+        totalScore,
+        status: newStatus,
+        marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
+        lastActivityDate: new Date(),
+      }
+    });
 
-    } catch (err) {
-      logger.error({ err, domain }, 'Error ingesting lead signal');
-      return reply.status(500).send({ error: 'Internal server error' });
-    }
+    logger.info({ companyId: company.id, totalScore, newStatus, signalId: signal.id }, 'Ingest processed');
+
+    return reply.code(201).send({
+      company: { id: company.id, name: company.name, domain: company.domain },
+      signal: { id: signal.id, triggerType, score_final: scores.final },
+      lead: { id: lead.id, totalScore, status: newStatus },
+    });
   });
 }
