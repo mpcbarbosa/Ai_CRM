@@ -1,26 +1,34 @@
 import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import { config } from 'dotenv';
 import { ingestRoutes } from './routes/ingest';
 import { leadsRoutes } from './routes/leads';
 import { logger } from './lib/logger';
 
-config();
-
 const app = Fastify({ logger: false });
 
-app.register(cors, { origin: '*' });
+// Accept any content-type as JSON (for webhooks without Content-Type header)
+app.addContentTypeParser('*', { parseAs: 'string' }, (req, body, done) => {
+  try {
+    const parsed = typeof body === 'string' && body.trim() ? JSON.parse(body) : body;
+    done(null, parsed);
+  } catch (err) {
+    done(null, body);
+  }
+});
 
-// Health check
-app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
-
-// Routes
 app.register(ingestRoutes);
 app.register(leadsRoutes);
 
-const PORT = Number(process.env.PORT || 3000);
+app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
-app.listen({ port: PORT, host: '0.0.0.0' }, (err) => {
-  if (err) { logger.error(err); process.exit(1); }
-  logger.info('Ai CRM API running on port ' + PORT);
-});
+const start = async () => {
+  try {
+    const port = Number(process.env.PORT || 10000);
+    await app.listen({ port, host: '0.0.0.0' });
+    logger.info(`Ai CRM API running on port ${port}`);
+  } catch (err) {
+    logger.error(err);
+    process.exit(1);
+  }
+};
+
+start();
