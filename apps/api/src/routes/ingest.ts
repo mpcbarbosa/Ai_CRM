@@ -47,30 +47,36 @@ interface NormalizedSignal {
   raw: Record<string, unknown>;
 }
 
-function normalizePayload(agentName: string, body: Record<string, unknown>): NormalizedSignal[] {
+function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] {
   const triggerType = AGENT_TRIGGER_MAP[agentName] || 'GENERIC';
 
-  if (agentName === 'SAP_S4HANA_LeadScanner_Daily' && body.company) {
-    const c = body.company as Record<string, unknown>;
-    const raw = (body.raw as Record<string, unknown>) || {};
-    return [{
-      companyName: String(c.name || ''),
-      domain: normalizeDomain(c.domain as string, c.name as string),
-      website: c.website as string,
-      country: c.country as string,
-      sector: raw.setor as string,
-      triggerType,
-      summary: body.summary as string,
-      sourceUrl: raw.fonte as string,
-      score_trigger: Number(body.score_trigger || 0),
-      score_probability: Number(body.score_probability || 0),
-      score_final: Number(body.score_final || 0),
-      raw: body,
-    }];
+  // Support array at root level
+  const rootItems = Array.isArray(body) ? body : null;
+
+  if (agentName === 'SAP_S4HANA_LeadScanner_Daily' && !rootItems) {
+    const b = body as Record<string, unknown>;
+    if (b.company) {
+      const c = b.company as Record<string, unknown>;
+      const raw = (b.raw as Record<string, unknown>) || {};
+      return [{
+        companyName: String(c.name || ''),
+        domain: normalizeDomain(c.domain as string, c.name as string),
+        website: c.website as string,
+        country: c.country as string,
+        sector: raw.setor as string,
+        triggerType,
+        summary: b.summary as string,
+        sourceUrl: raw.fonte as string,
+        score_trigger: Number(b.score_trigger || 0),
+        score_probability: Number(b.score_probability || 0),
+        score_final: Number(b.score_final || 0),
+        raw: b,
+      }];
+    }
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-    const items = Array.isArray(body) ? body : [body];
+    const items = rootItems || [body];
     return (items as Record<string, unknown>[]).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
@@ -87,7 +93,7 @@ function normalizePayload(agentName: string, body: Record<string, unknown>): Nor
   }
 
   if (agentName === 'SAP_S4HANA_RFPScanner_Daily') {
-    const items = Array.isArray(body) ? body : [body];
+    const items = rootItems || [body];
     return (items as Record<string, unknown>[]).map(item => {
       let estimatedValue: number | undefined;
       if (item.valor_estimado) {
@@ -110,7 +116,7 @@ function normalizePayload(agentName: string, body: Record<string, unknown>): Nor
   }
 
   if (agentName === 'SAP_S4HANA_ExpansionScanner_Daily') {
-    const items = Array.isArray(body) ? body : [body];
+    const items = rootItems || [body];
     return (items as Record<string, unknown>[])
       .filter(item => !!item.empresa)
       .map(item => ({
@@ -127,7 +133,7 @@ function normalizePayload(agentName: string, body: Record<string, unknown>): Nor
   }
 
   if (agentName === 'SAP_S4HANA_LeadScoring_Excel') {
-    const items = Array.isArray(body) ? body : [body];
+    const items = rootItems || [body];
     return (items as Record<string, unknown>[])
       .filter(item => item.empresa && item.empresa !== 'Empresa não identificada')
       .map(item => ({
@@ -146,7 +152,8 @@ function normalizePayload(agentName: string, body: Record<string, unknown>): Nor
       }));
   }
 
-  const items = Array.isArray(body) ? body : [body];
+  // Generic fallback
+  const items = rootItems || [body];
   return (items as Record<string, unknown>[]).map(item => ({
     companyName: String(item.companyName || item.empresa || item.entidade || item.name || 'Unknown'),
     domain: normalizeDomain(
@@ -169,17 +176,21 @@ function normalizePayload(agentName: string, body: Record<string, unknown>): Nor
 }
 
 export async function ingestRoutes(app: FastifyInstance) {
+  // Agent-specific endpoints — agent sends raw JSON, no wrapper needed
   app.post('/api/ingest/gobii', async (req, reply) => {
+    const query = req.query as Record<string, string>;
     const body = req.body as Record<string, unknown>;
-    const agentName = String(body.agentName || 'UNKNOWN_AGENT');
+
+    // agentName: query param takes priority, then body field, then unknown
+    const agentName = query.agent || String(body.agentName || 'UNKNOWN_AGENT');
     const MQL_THRESHOLD = Number(process.env.MQL_THRESHOLD || 70);
 
     logger.info({ agent: agentName }, 'Gobii ingest received');
 
-    const signals = normalizePayload(agentName, body);
+    const signals = normalizePayload(agentName, req.body);
 
     if (signals.length === 0) {
-      return reply.code(200).send({ message: 'No processable records', received: body });
+      return reply.code(200).send({ message: 'No processable records', agent: agentName });
     }
 
     const results = [];
@@ -286,6 +297,7 @@ export async function ingestRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({
+      agent: agentName,
       processed: results.filter(r => !('error' in r)).length,
       errors: results.filter(r => 'error' in r).length,
       results,
