@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { calculateScore } from '../scoring/engine';
@@ -23,7 +23,7 @@ function normalizeDomain(domain?: string, name?: string): string {
       .trim()
       .substring(0, 50) + '.unknown';
   }
-  return 'unknown-' + Date.now();
+  return '';
 }
 
 interface NormalizedSignal {
@@ -47,10 +47,12 @@ interface NormalizedSignal {
   raw: Record<string, unknown>;
 }
 
+function isValidSignal(s: NormalizedSignal): boolean {
+  return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
+}
+
 function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] {
   const triggerType = AGENT_TRIGGER_MAP[agentName] || 'GENERIC';
-
-  // Support array at root level
   const rootItems = Array.isArray(body) ? body : null;
 
   if (agentName === 'SAP_S4HANA_LeadScanner_Daily' && !rootItems) {
@@ -152,10 +154,9 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       }));
   }
 
-  // Generic fallback
   const items = rootItems || [body];
   return (items as Record<string, unknown>[]).map(item => ({
-    companyName: String(item.companyName || item.empresa || item.entidade || item.name || 'Unknown'),
+    companyName: String(item.companyName || item.empresa || item.entidade || item.name || ''),
     domain: normalizeDomain(
       (item.domain || item.companyDomain) as string,
       (item.companyName || item.empresa || item.entidade) as string
@@ -176,21 +177,33 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 }
 
 export async function ingestRoutes(app: FastifyInstance) {
-  // Agent-specific endpoints — agent sends raw JSON, no wrapper needed
   app.post('/api/ingest/gobii', async (req, reply) => {
+    // API key auth — optional if INGEST_API_KEY env var is set
+    const apiKey = process.env.INGEST_API_KEY;
+    if (apiKey) {
+      const provided = (req.headers['x-api-key'] as string) || (req.query as Record<string, string>).apiKey;
+      if (provided !== apiKey) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+    }
+
     const query = req.query as Record<string, string>;
     const body = req.body as Record<string, unknown>;
-
-    // agentName: query param takes priority, then body field, then unknown
-    const agentName = query.agent || String(body.agentName || 'UNKNOWN_AGENT');
+    const agentName = query.agent || String(body?.agentName || 'UNKNOWN_AGENT');
     const MQL_THRESHOLD = Number(process.env.MQL_THRESHOLD || 70);
 
     logger.info({ agent: agentName }, 'Gobii ingest received');
 
-    const signals = normalizePayload(agentName, req.body);
+    const allSignals = normalizePayload(agentName, req.body);
+    const signals = allSignals.filter(isValidSignal);
+    const skipped = allSignals.length - signals.length;
+
+    if (skipped > 0) {
+      logger.warn({ agent: agentName, skipped }, 'Skipped records without company name');
+    }
 
     if (signals.length === 0) {
-      return reply.code(200).send({ message: 'No processable records', agent: agentName });
+      return reply.code(200).send({ message: 'No processable records', agent: agentName, skipped });
     }
 
     const results = [];
@@ -299,6 +312,7 @@ export async function ingestRoutes(app: FastifyInstance) {
     return reply.code(201).send({
       agent: agentName,
       processed: results.filter(r => !('error' in r)).length,
+      skipped,
       errors: results.filter(r => 'error' in r).length,
       results,
     });
