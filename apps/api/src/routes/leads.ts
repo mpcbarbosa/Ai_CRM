@@ -7,8 +7,11 @@ export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
     const leads = await prisma.lead.findMany({
       include: {
-        company: true,
-        leadSignals: { orderBy: { createdAt: 'desc' }, take: 1 },
+        company: {
+          include: {
+            signals: { orderBy: { createdAt: 'desc' }, take: 1 },
+          },
+        },
       },
       orderBy: { totalScore: 'desc' },
     });
@@ -20,8 +23,12 @@ export async function leadsRoutes(app: FastifyInstance) {
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
-        company: { include: { contacts: true } },
-        leadSignals: { orderBy: { createdAt: 'desc' } },
+        company: {
+          include: {
+            contacts: true,
+            signals: { orderBy: { createdAt: 'desc' } },
+          },
+        },
       },
     });
     if (!lead) return reply.code(404).send({ error: 'Not found' });
@@ -55,6 +62,7 @@ export async function leadsRoutes(app: FastifyInstance) {
       return reply.code(401).send({ error: 'Invalid confirm secret' });
     }
     await prisma.leadSignal.deleteMany();
+    await prisma.opportunity.deleteMany();
     await prisma.lead.deleteMany();
     await prisma.contact.deleteMany();
     await prisma.company.deleteMany();
