@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { calculateScore } from '../scoring/engine';
+import { Prisma } from '@prisma/client';
 
 const AGENT_TRIGGER_MAP: Record<string, string> = {
   'SAP_S4HANA_SectorInvestmentScanner_Daily': 'SECTOR_INVESTMENT',
@@ -230,7 +231,7 @@ export async function ingestRoutes(app: FastifyInstance) {
             companyId: company.id,
             agentName,
             triggerType: signal.triggerType,
-            rawData: signal.raw,
+            rawData: signal.raw as Prisma.InputJsonValue,
             score_trigger: scores.trigger,
             score_probability: scores.probability,
             score_final: scores.final,
@@ -272,8 +273,6 @@ export async function ingestRoutes(app: FastifyInstance) {
           },
         });
 
-        logger.info({ company: company.domain, totalScore, status: newStatus }, 'Signal processed');
-
         results.push({
           company: { id: company.id, name: company.name, domain: company.domain },
           signal: { id: leadSignal.id, triggerType: signal.triggerType, score_final: scores.final },
@@ -287,8 +286,8 @@ export async function ingestRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send({
-      processed: results.filter(r => !r.error).length,
-      errors: results.filter(r => (r as any).error).length,
+      processed: results.filter(r => !('error' in r)).length,
+      errors: results.filter(r => 'error' in r).length,
       results,
     });
   });
