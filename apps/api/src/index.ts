@@ -1,11 +1,13 @@
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import { ingestRoutes } from './routes/ingest';
 import { leadsRoutes } from './routes/leads';
 import { logger } from './lib/logger';
 
 const app = Fastify({ logger: false });
 
-// Accept any content-type as JSON (for webhooks without Content-Type header)
+app.register(cors, { origin: true });
+
 app.addContentTypeParser('*', { parseAs: 'string' }, (req, body, done) => {
   try {
     const parsed = typeof body === 'string' && body.trim() ? JSON.parse(body) : body;
