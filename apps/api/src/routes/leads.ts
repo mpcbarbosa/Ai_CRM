@@ -1,13 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { LeadStatus } from '@prisma/client';
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
     const leads = await prisma.lead.findMany({
       include: {
         company: true,
-        signals: { orderBy: { createdAt: 'desc' }, take: 1 },
+        leadSignals: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
       orderBy: { totalScore: 'desc' },
     });
@@ -20,7 +21,7 @@ export async function leadsRoutes(app: FastifyInstance) {
       where: { id },
       include: {
         company: { include: { contacts: true } },
-        signals: { orderBy: { createdAt: 'desc' } },
+        leadSignals: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!lead) return reply.code(404).send({ error: 'Not found' });
@@ -29,7 +30,7 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   app.patch('/api/leads/:id/status', async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { status } = req.body as { status: string };
+    const { status } = req.body as { status: LeadStatus };
     const lead = await prisma.lead.update({
       where: { id },
       data: { status, updatedAt: new Date() },
@@ -47,7 +48,6 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send({ total, mql, sql, signals });
   });
 
-  // Admin reset — clears all data
   app.post('/api/admin/reset', async (req, reply) => {
     const secret = process.env.RESET_SECRET;
     const { confirm } = req.body as { confirm?: string };
