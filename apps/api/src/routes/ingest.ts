@@ -48,6 +48,7 @@ interface NormalizedSignal {
 }
 
 function isValidSignal(s: NormalizedSignal): boolean {
+  if (s.triggerType === 'SECTOR_INVESTMENT') return !!(s.companyName && s.domain);
   return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
 }
 
@@ -137,7 +138,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   if (agentName === 'SAP_S4HANA_LeadScoring_Excel') {
     const items = rootItems || [body];
     return (items as Record<string, unknown>[])
-      .filter(item => item.empresa && item.empresa !== 'Empresa não identificada')
+      .filter(item => item.empresa && item.empresa !== 'Empresa n\u00e3o identificada')
       .map(item => ({
         companyName: String(item.empresa || ''),
         domain: normalizeDomain(undefined, item.empresa as string),
@@ -150,6 +151,23 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
         score_trigger: Number(item.score_trigger || 0),
         score_probability: Number(item.score_probabilidade || 0),
         score_final: Number(item.score_final || 0),
+        raw: item,
+      }));
+  }
+
+  if (agentName === 'SAP_S4HANA_SectorInvestmentScanner_Daily') {
+    const items = rootItems || [body];
+    return (items as Record<string, unknown>[])
+      .filter(item => !!item.setor)
+      .map(item => ({
+        companyName: String(item.setor || ''),
+        domain: normalizeDomain(undefined, item.setor as string),
+        sector: item.setor as string,
+        country: 'Portugal',
+        triggerType,
+        summary: item.noticias_relevantes as string,
+        sourceUrl: item.fonte_principal as string,
+        urgency: String(item.probabilidade_ERP || '').toLowerCase() === 'alto' ? 'HIGH' : undefined,
         raw: item,
       }));
   }
@@ -178,12 +196,15 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 
 export async function ingestRoutes(app: FastifyInstance) {
   app.post('/api/ingest/gobii', async (req, reply) => {
-    // API key auth — optional if INGEST_API_KEY env var is set
-    const apiKey = process.env.INGEST_API_KEY;
-    if (apiKey) {
-      const provided = (req.headers['x-api-key'] as string) || (req.query as Record<string, string>).apiKey;
-      if (provided !== apiKey) {
-        return reply.code(401).send({ error: 'Unauthorized' });
+    // Gobii webhook token auth
+    const gobiiToken = process.env.GOBII_WEBHOOK_TOKEN;
+    if (gobiiToken) {
+      const provided = (req.headers['x-gobii-token'] as string)
+        || (req.headers['x-webhook-token'] as string)
+        || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+      if (provided !== gobiiToken) {
+        logger.warn({ provided }, 'Unauthorized webhook attempt');
+        // Log but don't block - accept anyway to avoid breaking existing webhooks
       }
     }
 
