@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Ai CRM',
@@ -8,9 +9,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="stylesheet" href="/_next/static/css/app.css" />
-      </head>
       <body suppressHydrationWarning>
         <div className="container">
           <div className="header">
