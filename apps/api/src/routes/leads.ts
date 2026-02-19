@@ -55,6 +55,18 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send({ total, mql, sql, signals });
   });
 
+  app.get('/api/signals', async (req, reply) => {
+    const query = req.query as Record<string, string>;
+    const where = query.triggerType ? { triggerType: query.triggerType } : {};
+    const signals = await prisma.leadSignal.findMany({
+      where,
+      include: { company: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    return reply.send(signals);
+  });
+
   app.post('/api/admin/reset', async (req, reply) => {
     const secret = process.env.RESET_SECRET;
     const { confirm } = req.body as { confirm?: string };
