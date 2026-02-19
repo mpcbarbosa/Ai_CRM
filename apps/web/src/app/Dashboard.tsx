@@ -24,6 +24,14 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+function ProbBadge({ value }: { value: string }) {
+  const high = ['alta', 'alto', 'high'].includes(String(value).toLowerCase());
+  const med = ['media', 'médio', 'medio', 'medium'].includes(String(value).toLowerCase());
+  const bg = high ? '#166534' : med ? '#1e3a5f' : '#1e293b';
+  const color = high ? '#4ade80' : med ? '#60a5fa' : '#94a3b8';
+  return <span style={{background: bg, color, padding:'2px 8px', borderRadius:'8px', fontSize:'11px'}}>{value || '-'}</span>;
+}
+
 export default function Dashboard() {
   const [tab, setTab] = useState('pipeline');
   const [stats, setStats] = useState({ total: 0, mql: 0, sql: 0, opportunities: 0, pipeline: 0 });
@@ -57,6 +65,7 @@ export default function Dashboard() {
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
   const scoring = signals.filter(s => s.triggerType === 'EXCEL_SCORE');
+  const sectors = signals.filter(s => s.triggerType === 'SECTOR_INVESTMENT');
 
   const tabs = [
     { id: 'pipeline', label: 'Pipeline', count: leads.length },
@@ -64,6 +73,7 @@ export default function Dashboard() {
     { id: 'rfp', label: 'RFP / Concursos', count: rfps.length },
     { id: 'expansion', label: 'Expansão', count: expansions.length },
     { id: 'scoring', label: 'Lead Scoring', count: scoring.length },
+    { id: 'sectors', label: 'Setores', count: sectors.length },
   ];
 
   return (
@@ -84,7 +94,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div style={{display:'flex', gap:'4px', borderBottom:'1px solid #1e293b', marginBottom:'24px'}}>
+      <div style={{display:'flex', gap:'4px', borderBottom:'1px solid #1e293b', marginBottom:'24px', flexWrap:'wrap'}}>
         {tabs.map(t => (
           <button key={t.id} style={tabStyle(tab === t.id)} onClick={() => setTab(t.id)}>
             {t.label}{t.count > 0 ? <span style={{marginLeft:'6px', background:'#7c3aed', color:'white', borderRadius:'10px', padding:'1px 6px', fontSize:'10px'}}>{t.count}</span> : null}
@@ -157,7 +167,7 @@ export default function Dashboard() {
                 <td style={{color:'#94a3b8'}}>{r.pais || '-'}</td>
                 <td style={{color:'#94a3b8', fontSize:'12px', maxWidth:'250px'}}>{r.descricao || s.summary || '-'}</td>
                 <td style={{color:'#4ade80', fontWeight:600}}>{r.valor_estimado || '-'}</td>
-                <td><span style={{background: r.pertinencia_ERP === 'Alto' ? '#166534' : '#1e293b', color: r.pertinencia_ERP === 'Alto' ? '#4ade80' : '#94a3b8', padding:'2px 8px', borderRadius:'8px', fontSize:'11px'}}>{r.pertinencia_ERP || '-'}</span></td>
+                <td><ProbBadge value={r.pertinencia_ERP} /></td>
                 <td>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{color:'#7c3aed'}}>🔗</a> : '-'}</td>
                 <td style={{color:'#64748b', fontSize:'12px'}}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
               </tr>;
@@ -182,7 +192,7 @@ export default function Dashboard() {
                 <td style={{color:'#94a3b8'}}>{r.setor || s.company?.sector || '-'}</td>
                 <td style={{color:'#60a5fa', fontSize:'12px'}}>{r.tipo_expansao || '-'}</td>
                 <td style={{color:'#94a3b8', fontSize:'12px', maxWidth:'200px'}}>{r.impacto_ERP || s.summary || '-'}</td>
-                <td><span style={{background: r.probabilidade === 'Alta' ? '#166534' : '#1e293b', color: r.probabilidade === 'Alta' ? '#4ade80' : '#94a3b8', padding:'2px 8px', borderRadius:'8px', fontSize:'11px'}}>{r.probabilidade || '-'}</span></td>
+                <td><ProbBadge value={r.probabilidade} /></td>
                 <td style={{color:'#64748b', fontSize:'12px'}}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
               </tr>;
             })}
@@ -206,8 +216,34 @@ export default function Dashboard() {
                 <td style={{color:'#94a3b8'}}>{r.setor || s.company?.sector || '-'}</td>
                 <td><ScoreBar score={s.score_final} /></td>
                 <td style={{color:'#94a3b8', fontSize:'12px'}}>{r.trigger || '-'}</td>
-                <td style={{color:'#94a3b8', fontSize:'12px'}}>{r.probabilidade || '-'}</td>
+                <td><ProbBadge value={r.probabilidade} /></td>
                 <td style={{color:'#94a3b8', fontSize:'12px', maxWidth:'200px'}}>{r.resumo || s.summary || '-'}</td>
+                <td style={{color:'#64748b', fontSize:'12px'}}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
+              </tr>;
+            })}
+          </tbody></table>
+        </>
+      )}
+
+      {!loading && tab === 'sectors' && (
+        <>
+          <div className="section-title">Análise Setorial — Portugal</div>
+          <table><thead><tr>
+            <th>Setor</th><th>Crescimento</th><th>Investimento</th><th>Maturidade Tech</th>
+            <th>Drivers</th><th>Prob. ERP</th><th>Notícias</th><th>Fonte</th><th>Data</th>
+          </tr></thead><tbody>
+            {sectors.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma análise setorial registada." /></td></tr>
+            : sectors.map((s: any) => {
+              const r = s.rawData || {};
+              return <tr key={s.id}>
+                <td style={{fontWeight:600}}>{r.setor || s.company?.name || '-'}</td>
+                <td style={{color:'#4ade80', fontWeight:600}}>{r.crescimento || '-'}</td>
+                <td style={{color:'#60a5fa', fontSize:'12px'}}>{r.investimento_recente || '-'}</td>
+                <td style={{color:'#94a3b8', fontSize:'12px'}}>{r.maturidade_tecnologica || '-'}</td>
+                <td style={{color:'#94a3b8', fontSize:'12px', maxWidth:'200px'}}>{r.drivers_crescimento || '-'}</td>
+                <td><ProbBadge value={r.probabilidade_ERP} /></td>
+                <td style={{color:'#94a3b8', fontSize:'12px', maxWidth:'200px'}}>{r.noticias_relevantes || '-'}</td>
+                <td>{r.fonte_principal ? <a href={r.fonte_principal} target="_blank" style={{color:'#7c3aed'}}>🔗</a> : '-'}</td>
                 <td style={{color:'#64748b', fontSize:'12px'}}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
               </tr>;
             })}
