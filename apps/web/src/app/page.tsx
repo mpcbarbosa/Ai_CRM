@@ -1,21 +1,30 @@
+import { TabDashboard } from './TabDashboard';
+
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 async function getDashboardData() {
   try {
-    const [statsRes, leadsRes] = await Promise.all([
-      fetch(API + '/api/leads/stats', { next: { revalidate: 30 } }),
-      fetch(API + '/api/leads?limit=50', { next: { revalidate: 30 } })
+    const [statsRes, leadsRes, signalsRes] = await Promise.all([
+      fetch(API + '/api/stats', { next: { revalidate: 30 } }),
+      fetch(API + '/api/leads', { next: { revalidate: 30 } }),
+      fetch(API + '/api/signals', { next: { revalidate: 30 } }),
     ]);
     const stats = statsRes.ok ? await statsRes.json() : { total: 0, mql: 0, sql: 0, opportunities: 0, pipeline: 0 };
-    const leads = leadsRes.ok ? await leadsRes.json() : { data: [] };
-    return { stats, leads: leads.data || [] };
+    const leads = leadsRes.ok ? await leadsRes.json() : [];
+    const signals = signalsRes.ok ? await signalsRes.json() : [];
+    return { stats, leads: Array.isArray(leads) ? leads : [], signals: Array.isArray(signals) ? signals : [] };
   } catch {
-    return { stats: { total: 0, mql: 0, sql: 0, opportunities: 0, pipeline: 0 }, leads: [] };
+    return { stats: { total: 0, mql: 0, sql: 0, opportunities: 0, pipeline: 0 }, leads: [], signals: [] };
   }
 }
 
 export default async function Dashboard() {
-  const { stats, leads } = await getDashboardData();
+  const { stats, leads, signals } = await getDashboardData();
+
+  const clevels = signals.filter((s: any) => s.triggerType === 'CLEVEL_CHANGE');
+  const rfps = signals.filter((s: any) => s.triggerType === 'RFP_SIGNAL');
+  const expansions = signals.filter((s: any) => s.triggerType === 'EXPANSION_SIGNAL');
+  const scoring = signals.filter((s: any) => s.triggerType === 'EXCEL_SCORE');
 
   return (
     <>
@@ -37,7 +46,7 @@ export default async function Dashboard() {
         </div>
         <div className="kpi-card purple">
           <div className="label">Opportunities</div>
-          <div className="value">{stats.opportunities}</div>
+          <div className="value">{stats.opportunities || 0}</div>
           <div className="sub">oportunidades ativas</div>
         </div>
         <div className="kpi-card orange">
@@ -47,44 +56,13 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      <div className="section-title">Pipeline de Leads</div>
-      <table>
-        <thead>
-          <tr>
-            <th>Empresa</th>
-            <th>Setor</th>
-            <th>Score</th>
-            <th>Status</th>
-            <th>Último Trigger</th>
-            <th>Agente</th>
-            <th>Última Atividade</th>
-          </tr>
-        </thead>
-        <tbody>
-          {leads.length === 0 ? (
-            <tr><td colSpan={7} style={{textAlign:'center', color:'#475569', padding:'48px'}}>
-              Nenhum lead ainda. Envie dados via POST /api/ingest/gobii
-            </td></tr>
-          ) : leads.map((lead: any) => (
-            <tr key={lead.id}>
-              <td style={{fontWeight:600}}>{lead.company?.name || '-'}</td>
-              <td style={{color:'#94a3b8'}}>{lead.company?.sector || '-'}</td>
-              <td>
-                <span style={{fontWeight:700, color: lead.totalScore >= 100 ? '#4ade80' : lead.totalScore >= 70 ? '#60a5fa' : '#94a3b8'}}>
-                  {Math.round(lead.totalScore)}
-                </span>
-                <div className="score-bar">
-                  <div className="score-fill" style={{width: Math.min(100, lead.totalScore) + '%'}}></div>
-                </div>
-              </td>
-              <td><span className={'badge-status badge-' + lead.status}>{lead.status}</span></td>
-              <td style={{color:'#94a3b8', fontSize:'12px'}}>{lead.company?.signals?.[0]?.triggerType || '-'}</td>
-              <td style={{color:'#7c3aed', fontSize:'12px'}}>{lead.company?.signals?.[0]?.agentName?.replace('SAP_S4HANA_','').replace('_Daily','') || '-'}</td>
-              <td style={{color:'#64748b', fontSize:'12px'}}>{new Date(lead.lastActivityDate).toLocaleDateString('pt-PT')}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TabDashboard
+        pipeline={leads}
+        clevels={clevels}
+        rfps={rfps}
+        expansions={expansions}
+        scoring={scoring}
+      />
     </>
   );
 }
