@@ -26,6 +26,15 @@ function normalizeDomain(domain?: string, name?: string): string {
   return '';
 }
 
+function extractArray(body: unknown): Record<string, unknown>[] {
+  if (Array.isArray(body)) return body as Record<string, unknown>[];
+  const b = body as Record<string, unknown>;
+  for (const key of ['findings', 'leads', 'results', 'data', 'items', 'records', 'sectors', 'signals']) {
+    if (Array.isArray(b[key])) return b[key] as Record<string, unknown>[];
+  }
+  return [b];
+}
+
 interface NormalizedSignal {
   companyName: string;
   domain: string;
@@ -55,13 +64,12 @@ function isValidSignal(s: NormalizedSignal): boolean {
 function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] {
   const triggerType = AGENT_TRIGGER_MAP[agentName] || 'GENERIC';
 
-  // Handle LeadScanner envelope format: {"source": {...}, "leads": [...]}
   if (agentName === 'SAP_S4HANA_LeadScanner_Daily') {
     const b = body as Record<string, unknown>;
-    const leadsArray = Array.isArray(b.leads) ? b.leads : null;
+    const leadsArray = Array.isArray(b.leads) ? b.leads as Record<string, unknown>[] : null;
 
     if (leadsArray) {
-      return (leadsArray as Record<string, unknown>[]).map(item => {
+      return leadsArray.map(item => {
         const c = (item.company || {}) as Record<string, unknown>;
         const raw = (item.raw || {}) as Record<string, unknown>;
         return {
@@ -81,7 +89,6 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       });
     }
 
-    // Fallback: single object with company key
     if (b.company) {
       const c = b.company as Record<string, unknown>;
       const raw = (b.raw as Record<string, unknown>) || {};
@@ -102,11 +109,8 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
     }
   }
 
-  const rootItems = Array.isArray(body) ? body : null;
-
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-    const items = rootItems || [body];
-    return (items as Record<string, unknown>[]).map(item => ({
+    return extractArray(body).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
       country: item.pais as string,
@@ -122,8 +126,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_RFPScanner_Daily') {
-    const items = rootItems || [body];
-    return (items as Record<string, unknown>[]).map(item => {
+    return extractArray(body).map(item => {
       let estimatedValue: number | undefined;
       if (item.valor_estimado) {
         const cleaned = String(item.valor_estimado).replace(/\s*EUR\s*/i, '').replace(/\./g, '').replace(',', '.');
@@ -145,8 +148,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_ExpansionScanner_Daily') {
-    const items = rootItems || [body];
-    return (items as Record<string, unknown>[])
+    return extractArray(body)
       .filter(item => !!item.empresa)
       .map(item => ({
         companyName: String(item.empresa || ''),
@@ -162,8 +164,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_LeadScoring_Excel') {
-    const items = rootItems || [body];
-    return (items as Record<string, unknown>[])
+    return extractArray(body)
       .filter(item => item.empresa && item.empresa !== 'Empresa n\u00e3o identificada')
       .map(item => ({
         companyName: String(item.empresa || ''),
@@ -182,8 +183,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_SectorInvestmentScanner_Daily') {
-    const items = rootItems || [body];
-    return (items as Record<string, unknown>[])
+    return extractArray(body)
       .filter(item => !!item.setor)
       .map(item => ({
         companyName: String(item.setor || ''),
@@ -198,8 +198,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       }));
   }
 
-  const items = rootItems || [body];
-  return (items as Record<string, unknown>[]).map(item => ({
+  return extractArray(body).map(item => ({
     companyName: String(item.companyName || item.empresa || item.entidade || item.name || ''),
     domain: normalizeDomain(
       (item.domain || item.companyDomain) as string,
