@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { calculateScore } from '../scoring/engine';
@@ -54,10 +54,34 @@ function isValidSignal(s: NormalizedSignal): boolean {
 
 function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] {
   const triggerType = AGENT_TRIGGER_MAP[agentName] || 'GENERIC';
-  const rootItems = Array.isArray(body) ? body : null;
 
-  if (agentName === 'SAP_S4HANA_LeadScanner_Daily' && !rootItems) {
+  // Handle LeadScanner envelope format: {"source": {...}, "leads": [...]}
+  if (agentName === 'SAP_S4HANA_LeadScanner_Daily') {
     const b = body as Record<string, unknown>;
+    const leadsArray = Array.isArray(b.leads) ? b.leads : null;
+
+    if (leadsArray) {
+      return (leadsArray as Record<string, unknown>[]).map(item => {
+        const c = (item.company || {}) as Record<string, unknown>;
+        const raw = (item.raw || {}) as Record<string, unknown>;
+        return {
+          companyName: String(c.name || ''),
+          domain: normalizeDomain(c.domain as string, c.name as string),
+          website: c.website as string,
+          country: c.country as string,
+          sector: raw.setor as string,
+          triggerType,
+          summary: item.summary as string,
+          sourceUrl: raw.fonte as string,
+          score_trigger: Number(item.score_trigger || 0),
+          score_probability: Number(item.score_probability || 0),
+          score_final: Number(item.score_final || 0),
+          raw: item,
+        };
+      });
+    }
+
+    // Fallback: single object with company key
     if (b.company) {
       const c = b.company as Record<string, unknown>;
       const raw = (b.raw as Record<string, unknown>) || {};
@@ -77,6 +101,8 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       }];
     }
   }
+
+  const rootItems = Array.isArray(body) ? body : null;
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
     const items = rootItems || [body];
@@ -196,7 +222,6 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 
 export async function ingestRoutes(app: FastifyInstance) {
   app.post('/api/ingest/gobii', async (req, reply) => {
-    // Gobii webhook token auth
     const gobiiToken = process.env.GOBII_WEBHOOK_TOKEN;
     if (gobiiToken) {
       const provided = (req.headers['x-gobii-token'] as string)
@@ -204,7 +229,6 @@ export async function ingestRoutes(app: FastifyInstance) {
         || (req.headers['authorization'] as string)?.replace('Bearer ', '');
       if (provided !== gobiiToken) {
         logger.warn({ provided }, 'Unauthorized webhook attempt');
-        // Log but don't block - accept anyway to avoid breaking existing webhooks
       }
     }
 
