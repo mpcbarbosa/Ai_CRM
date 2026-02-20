@@ -5,10 +5,17 @@ import { leadsRoutes } from './routes/leads';
 import { logger } from './lib/logger';
 
 const app = Fastify({ logger: false });
-
 app.register(cors, { origin: true });
 
-// Handle requests with no Content-Type header (webhooks)
+// Custom JSON parser that accepts both objects and arrays
+app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  try {
+    done(null, JSON.parse(body as string));
+  } catch (e) {
+    done(e as Error, undefined);
+  }
+});
+
 app.addContentTypeParser('text/plain', { parseAs: 'string' }, (req, body, done) => {
   try {
     done(null, JSON.parse(body as string));
@@ -43,7 +50,6 @@ app.addHook('preValidation', async (req) => {
 
 app.register(ingestRoutes);
 app.register(leadsRoutes);
-
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
 const start = async () => {
@@ -56,5 +62,4 @@ const start = async () => {
     process.exit(1);
   }
 };
-
 start();
