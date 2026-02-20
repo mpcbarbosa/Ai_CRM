@@ -6,7 +6,7 @@ const API = 'https://ai-crm-api-pcdn.onrender.com';
 
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK'];
 const ACTIVITY_ICONS: Record<string, string> = {
-  CALL: 'ÃÂ°ÃÂÃÂÃÂ', EMAIL: 'ÃÂ°ÃÂÃÂÃÂ§', MEETING: 'ÃÂ°ÃÂÃÂ¤ÃÂ', NOTE: 'ÃÂ°ÃÂÃÂÃÂ', TASK: 'ÃÂ¢ÃÂÃÂ'
+  CALL: 'ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ', EMAIL: 'ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ§', MEETING: 'ÃÂÃÂ°ÃÂÃÂÃÂÃÂ¤ÃÂÃÂ', NOTE: 'ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ', TASK: 'ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ'
 };
 const STATUS_COLORS: Record<string, string> = {
   NEW: '#475569', MQL: '#1d4ed8', SQL: '#15803d', LOST: '#991b1b'
@@ -39,7 +39,7 @@ function ScoreBar({ score }: { score: number }) {
 function ProbBadge({ value }: { value: string }) {
   const v = String(value || '').toLowerCase();
   const high = ['alta', 'alto', 'high'].includes(v);
-  const med = ['media', 'mÃÂÃÂ©dio', 'medio', 'medium'].includes(v);
+  const med = ['media', 'mÃÂÃÂÃÂÃÂ©dio', 'medio', 'medium'].includes(v);
   const bg = high ? '#166534' : med ? '#1e3a5f' : '#1e293b';
   const color = high ? '#4ade80' : med ? '#60a5fa' : '#94a3b8';
   return <span style={{ background: bg, color, padding: '2px 8px', borderRadius: '8px', fontSize: '11px' }}>{value || '-'}</span>;
@@ -144,12 +144,12 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
               <StatusBadge status={lead.status} />
             </div>
             <div style={{ color: '#64748b', fontSize: '13px' }}>
-              {c.sector && <span style={{ marginRight: '12px' }}>ÃÂ°ÃÂÃÂÃÂ {c.sector}</span>}
-              {c.country && <span style={{ marginRight: '12px' }}>ÃÂ°ÃÂÃÂÃÂ {c.country}</span>}
-              {c.website && <a href={c.website} target="_blank" style={{ color: '#7c3aed' }}>ÃÂ°ÃÂÃÂÃÂ {c.website}</a>}
+              {c.sector && <span style={{ marginRight: '12px' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ {c.sector}</span>}
+              {c.country && <span style={{ marginRight: '12px' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ {c.country}</span>}
+              {c.website && <a href={c.website} target="_blank" style={{ color: '#7c3aed' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ {c.website}</a>}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '24px', cursor: 'pointer' }}>ÃÂ¢ÃÂÃÂ</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '24px', cursor: 'pointer' }}>ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ</button>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -180,7 +180,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
         <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #1e293b', marginBottom: '20px' }}>
           {(['overview', 'signals', 'activities', 'opportunities'] as const).map(t => (
             <button key={t} style={tabStyle(activeTab === t)} onClick={() => setActiveTab(t)}>
-              {t === 'overview' ? 'VisÃÂÃÂ£o Geral' : t === 'signals' ? `Sinais (${c.signals?.length || 0})` : t === 'activities' ? `Atividades (${lead.activities?.length || 0})` : `Oportunidades (${lead.opportunities?.length || 0})`}
+              {t === 'overview' ? 'VisÃÂÃÂÃÂÃÂ£o Geral' : t === 'signals' ? `Sinais (${c.signals?.length || 0})` : t === 'activities' ? `Atividades (${lead.activities?.length || 0})` : `Oportunidades (${lead.opportunities?.length || 0})`}
             </button>
           ))}
         </div>
@@ -203,7 +203,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
             )}
             {c.signals?.[0] && (
               <div>
-                <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>ÃÂÃÂltimo Sinal</div>
+                <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase' }}>ÃÂÃÂÃÂÃÂltimo Sinal</div>
                 <div style={{ background: '#0f172a', borderRadius: '8px', padding: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <span style={{ color: '#7c3aed', fontSize: '12px', fontWeight: 700 }}>{c.signals[0].triggerType}</span>
@@ -220,7 +220,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                       </div>
                     ))}
                   </div>
-                  {c.signals[0].sourceUrl && <a href={c.signals[0].sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px', display: 'block', marginTop: '10px' }}>ÃÂ°ÃÂÃÂÃÂ Ver fonte</a>}
+                  {c.signals[0].sourceUrl && <a href={c.signals[0].sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px', display: 'block', marginTop: '10px' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ Ver fonte</a>}
                 </div>
               </div>
             )}
@@ -250,7 +250,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                     </div>
                   ))}
                 </div>
-                {s.sourceUrl && <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '11px', display: 'block', marginTop: '6px' }}>ÃÂ°ÃÂÃÂÃÂ Fonte</a>}
+                {s.sourceUrl && <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '11px', display: 'block', marginTop: '6px' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ Fonte</a>}
               </div>
             ))}
           </div>
@@ -274,7 +274,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                     }}>{ACTIVITY_ICONS[t]} {t}</button>
                   ))}
                 </div>
-                <input placeholder="TÃÂÃÂ­tulo da atividade *" value={newActivity.title}
+                <input placeholder="TÃÂÃÂÃÂÃÂ­tulo da atividade *" value={newActivity.title}
                   onChange={e => setNewActivity(a => ({ ...a, title: e.target.value }))} style={inputStyle} />
                 <textarea placeholder="Notas (opcional)" value={newActivity.notes}
                   onChange={e => setNewActivity(a => ({ ...a, notes: e.target.value }))}
@@ -295,7 +295,7 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                   <div style={{ flex: 1 }}>
                     <div style={{ color: '#f8fafc', fontWeight: 600, marginBottom: '2px' }}>{a.title}</div>
                     {a.notes && <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '4px' }}>{a.notes}</div>}
-                    <div style={{ color: '#475569', fontSize: '11px' }}>{a.type} ÃÂÃÂ· {new Date(a.createdAt).toLocaleDateString('pt-PT')}</div>
+                    <div style={{ color: '#475569', fontSize: '11px' }}>{a.type} ÃÂÃÂÃÂÃÂ· {new Date(a.createdAt).toLocaleDateString('pt-PT')}</div>
                   </div>
                 </div>
               ))}
@@ -321,9 +321,9 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                     }}>{s}</button>
                   ))}
                 </div>
-                <input placeholder="Valor estimado (ÃÂ¢ÃÂÃÂ¬)" value={newOpp.estimatedValue}
+                <input placeholder="Valor estimado (ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ¬)" value={newOpp.estimatedValue}
                   onChange={e => setNewOpp(o => ({ ...o, estimatedValue: e.target.value }))} style={inputStyle} type="number" />
-                <input placeholder="ResponsÃÂÃÂ¡vel" value={newOpp.owner}
+                <input placeholder="ResponsÃÂÃÂÃÂÃÂ¡vel" value={newOpp.owner}
                   onChange={e => setNewOpp(o => ({ ...o, owner: e.target.value }))} style={inputStyle} />
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   <button onClick={() => setShowOppForm(false)} style={{ background: '#1e293b', color: '#94a3b8', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
@@ -339,9 +339,9 @@ function LeadModal({ leadId, onClose, onStatusChange }: {
                 <div key={o.id} style={{ background: '#0f172a', borderRadius: '8px', padding: '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                     <span style={{ background: STAGE_COLORS[o.stage], color: 'white', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{o.stage}</span>
-                    {o.estimatedValue && <span style={{ color: '#4ade80', fontWeight: 700 }}>ÃÂ¢ÃÂÃÂ¬{Number(o.estimatedValue).toLocaleString('pt-PT')}</span>}
+                    {o.estimatedValue && <span style={{ color: '#4ade80', fontWeight: 700 }}>ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ¬{Number(o.estimatedValue).toLocaleString('pt-PT')}</span>}
                   </div>
-                  {o.owner && <div style={{ color: '#94a3b8', fontSize: '12px' }}>ÃÂ°ÃÂÃÂÃÂ¤ {o.owner}</div>}
+                  {o.owner && <div style={{ color: '#94a3b8', fontSize: '12px' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ¤ {o.owner}</div>}
                   <div style={{ color: '#475569', fontSize: '11px', marginTop: '4px' }}>{new Date(o.createdAt).toLocaleDateString('pt-PT')}</div>
                 </div>
               ))}
@@ -391,23 +391,20 @@ export default function Dashboard() {
     { id: 'pipeline', label: 'Pipeline', count: leads.length },
     { id: 'clevel', label: 'C-Level Changes', count: clevels.length },
     { id: 'rfp', label: 'RFP / Concursos', count: rfps.length },
-    { id: 'expansion', label: 'ExpansÃÂÃÂ£o', count: expansions.length },
+    { id: 'expansion', label: 'ExpansÃÂÃÂÃÂÃÂ£o', count: expansions.length },
     { id: 'scoring', label: 'Lead Scoring', count: scoring.length },
     { id: 'sectors', label: 'Setores', count: sectors.length },
   ];
 
   return (
     <>
-      {selectedLeadId && (
-        <LeadModal leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} onStatusChange={load} />
-      )}
       <div className="kpi-grid">
         {[
           { label: 'Total Leads', value: stats.total, sub: 'empresas em pipeline', cls: '' },
           { label: 'MQL', value: stats.mql, sub: 'Marketing Qualified', cls: 'blue' },
           { label: 'SQL', value: stats.sql, sub: 'Sales Qualified', cls: 'green' },
           { label: 'Opportunities', value: stats.opportunities || 0, sub: 'oportunidades ativas', cls: 'purple' },
-          { label: 'Pipeline Total', value: 'ÃÂ¢ÃÂÃÂ¬' + Number(stats.pipeline || 0).toLocaleString('pt-PT'), sub: 'valor estimado', cls: 'orange' },
+          { label: 'Pipeline Total', value: 'ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ¬' + Number(stats.pipeline || 0).toLocaleString('pt-PT'), sub: 'valor estimado', cls: 'orange' },
         ].map(k => (
           <div key={k.label} className={'kpi-card ' + k.cls}>
             <div className="label">{k.label}</div>
@@ -429,7 +426,7 @@ export default function Dashboard() {
           <div className="section-title">Pipeline de Leads</div>
           <table><thead><tr>
             <th>Empresa</th><th>Setor</th><th>Score</th><th>Status</th>
-            <th>ÃÂÃÂltimo Trigger</th><th>Agente</th><th>ÃÂÃÂltima Atividade</th>
+            <th>ÃÂÃÂÃÂÃÂltimo Trigger</th><th>Agente</th><th>ÃÂÃÂÃÂÃÂltima Atividade</th>
           </tr></thead><tbody>
             {leads.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhum lead ainda." /></td></tr>
               : leads.map((lead: any) => (
@@ -450,9 +447,9 @@ export default function Dashboard() {
         <>
           <div className="section-title">C-Level Changes</div>
           <table><thead><tr>
-            <th>Empresa</th><th>PaÃÂÃÂ­s</th><th>Setor</th><th>Pessoa</th><th>Cargo</th><th>Impacto ERP</th><th>Fonte</th><th>Data</th>
+            <th>Empresa</th><th>PaÃÂÃÂÃÂÃÂ­s</th><th>Setor</th><th>Pessoa</th><th>Cargo</th><th>Impacto ERP</th><th>Fonte</th><th>Data</th>
           </tr></thead><tbody>
-            {clevels.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma alteraÃÂÃÂ§ÃÂÃÂ£o C-Level registada." /></td></tr>
+            {clevels.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma alteraÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂ£o C-Level registada." /></td></tr>
               : clevels.map((s: any) => { const r = s.rawData || {};
                 return <tr key={s.id} onClick={() => { const l = leads.find(l => l.companyId === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer' }}>
                   <td style={{ fontWeight: 600 }}>{s.company?.name || '-'}</td>
@@ -461,7 +458,7 @@ export default function Dashboard() {
                   <td>{r.nome_pessoa || '-'}</td>
                   <td style={{ color: '#60a5fa', fontSize: '12px' }}>{r.cargo_alterado || '-'}</td>
                   <td style={{ color: '#94a3b8', fontSize: '12px', maxWidth: '200px' }}>{r.impacto_ERP || s.summary || '-'}</td>
-                  <td>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>ÃÂ°ÃÂÃÂÃÂ</a> : '-'}</td>
+                  <td>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ</a> : '-'}</td>
                   <td style={{ color: '#64748b', fontSize: '12px' }}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
                 </tr>; })}
           </tbody></table>
@@ -469,9 +466,9 @@ export default function Dashboard() {
       )}
       {!loading && tab === 'rfp' && (
         <>
-          <div className="section-title">RFP / Concursos PÃÂÃÂºblicos</div>
+          <div className="section-title">RFP / Concursos PÃÂÃÂÃÂÃÂºblicos</div>
           <table><thead><tr>
-            <th>Entidade</th><th>PaÃÂÃÂ­s</th><th>DescriÃÂÃÂ§ÃÂÃÂ£o</th><th>Valor Estimado</th><th>PertinÃÂÃÂªncia ERP</th><th>Fonte</th><th>Data</th>
+            <th>Entidade</th><th>PaÃÂÃÂÃÂÃÂ­s</th><th>DescriÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂ£o</th><th>Valor Estimado</th><th>PertinÃÂÃÂÃÂÃÂªncia ERP</th><th>Fonte</th><th>Data</th>
           </tr></thead><tbody>
             {rfps.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhum RFP registado." /></td></tr>
               : rfps.map((s: any) => { const r = s.rawData || {};
@@ -481,7 +478,7 @@ export default function Dashboard() {
                   <td style={{ color: '#94a3b8', fontSize: '12px', maxWidth: '250px' }}>{r.descricao || s.summary || '-'}</td>
                   <td style={{ color: '#4ade80', fontWeight: 600 }}>{r.valor_estimado || '-'}</td>
                   <td><ProbBadge value={r.pertinencia_ERP} /></td>
-                  <td>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>ÃÂ°ÃÂÃÂÃÂ</a> : '-'}</td>
+                  <td>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ</a> : '-'}</td>
                   <td style={{ color: '#64748b', fontSize: '12px' }}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
                 </tr>; })}
           </tbody></table>
@@ -489,11 +486,11 @@ export default function Dashboard() {
       )}
       {!loading && tab === 'expansion' && (
         <>
-          <div className="section-title">ExpansÃÂÃÂ£o de Empresas</div>
+          <div className="section-title">ExpansÃÂÃÂÃÂÃÂ£o de Empresas</div>
           <table><thead><tr>
-            <th>Empresa</th><th>PaÃÂÃÂ­s</th><th>Setor</th><th>Tipo ExpansÃÂÃÂ£o</th><th>Impacto ERP</th><th>Probabilidade</th><th>Data</th>
+            <th>Empresa</th><th>PaÃÂÃÂÃÂÃÂ­s</th><th>Setor</th><th>Tipo ExpansÃÂÃÂÃÂÃÂ£o</th><th>Impacto ERP</th><th>Probabilidade</th><th>Data</th>
           </tr></thead><tbody>
-            {expansions.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhuma expansÃÂÃÂ£o registada." /></td></tr>
+            {expansions.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhuma expansÃÂÃÂÃÂÃÂ£o registada." /></td></tr>
               : expansions.map((s: any) => { const r = s.rawData || {};
                 return <tr key={s.id} onClick={() => { const l = leads.find(l => l.companyId === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer' }}>
                   <td style={{ fontWeight: 600 }}>{s.company?.name || '-'}</td>
@@ -511,7 +508,7 @@ export default function Dashboard() {
         <>
           <div className="section-title">Lead Scoring</div>
           <table><thead><tr>
-            <th>Empresa</th><th>PaÃÂÃÂ­s</th><th>Setor</th><th>Score Final</th><th>Trigger</th><th>Probabilidade</th><th>Resumo</th><th>Data</th>
+            <th>Empresa</th><th>PaÃÂÃÂÃÂÃÂ­s</th><th>Setor</th><th>Score Final</th><th>Trigger</th><th>Probabilidade</th><th>Resumo</th><th>Data</th>
           </tr></thead><tbody>
             {scoring.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhum lead scoring registado." /></td></tr>
               : scoring.map((s: any) => { const r = s.rawData || {};
@@ -530,11 +527,11 @@ export default function Dashboard() {
       )}
       {!loading && tab === 'sectors' && (
         <>
-          <div className="section-title">AnÃÂÃÂ¡lise Setorial ÃÂ¢ÃÂÃÂ Portugal</div>
+          <div className="section-title">AnÃÂÃÂÃÂÃÂ¡lise Setorial ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Portugal</div>
           <table><thead><tr>
-            <th>Setor</th><th>Crescimento</th><th>Investimento</th><th>Maturidade Tech</th><th>Drivers</th><th>Prob. ERP</th><th>NotÃÂÃÂ­cias</th><th>Fonte</th><th>Data</th>
+            <th>Setor</th><th>Crescimento</th><th>Investimento</th><th>Maturidade Tech</th><th>Drivers</th><th>Prob. ERP</th><th>NotÃÂÃÂÃÂÃÂ­cias</th><th>Fonte</th><th>Data</th>
           </tr></thead><tbody>
-            {sectors.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma anÃÂÃÂ¡lise setorial registada." /></td></tr>
+            {sectors.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma anÃÂÃÂÃÂÃÂ¡lise setorial registada." /></td></tr>
               : sectors.map((s: any) => { const r = s.rawData || {};
                 return <tr key={s.id}>
                   <td style={{ fontWeight: 600 }}>{r.setor || s.company?.name || '-'}</td>
@@ -544,7 +541,7 @@ export default function Dashboard() {
                   <td style={{ color: '#94a3b8', fontSize: '12px', maxWidth: '200px' }}>{r.drivers_crescimento || '-'}</td>
                   <td><ProbBadge value={r.probabilidade_ERP} /></td>
                   <td style={{ color: '#94a3b8', fontSize: '12px', maxWidth: '200px' }}>{r.noticias_relevantes || '-'}</td>
-                  <td>{r.fonte_principal ? <a href={r.fonte_principal} target="_blank" style={{ color: '#7c3aed' }}>ÃÂ°ÃÂÃÂÃÂ</a> : '-'}</td>
+                  <td>{r.fonte_principal ? <a href={r.fonte_principal} target="_blank" style={{ color: '#7c3aed' }}>ÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂ</a> : '-'}</td>
                   <td style={{ color: '#64748b', fontSize: '12px' }}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</td>
                 </tr>; })}
           </tbody></table>
