@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, ActivityType } from '@prisma/client';
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
@@ -29,6 +29,8 @@ export async function leadsRoutes(app: FastifyInstance) {
             signals: { orderBy: { createdAt: 'desc' } },
           },
         },
+        opportunities: { orderBy: { createdAt: 'desc' } },
+        activities: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!lead) return reply.code(404).send({ error: 'Not found' });
@@ -40,19 +42,104 @@ export async function leadsRoutes(app: FastifyInstance) {
     const { status } = req.body as { status: LeadStatus };
     const lead = await prisma.lead.update({
       where: { id },
-      data: { status, updatedAt: new Date() },
+      data: {
+        status,
+        salesQualified: status === 'SQL',
+        marketingQualified: status === 'MQL' || status === 'SQL',
+        updatedAt: new Date(),
+      },
     });
     return reply.send(lead);
   });
 
+  app.post('/api/leads/:id/activities', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { type, title, notes, createdBy } = req.body as {
+      type: ActivityType;
+      title: string;
+      notes?: string;
+      createdBy?: string;
+    };
+    const activity = await prisma.activity.create({
+      data: {
+        leadId: id,
+        type,
+        title,
+        notes: notes || null,
+        createdBy: createdBy || null,
+      },
+    });
+    await prisma.lead.update({
+      where: { id },
+      data: { lastActivityDate: new Date(), updatedAt: new Date() },
+    });
+    return reply.code(201).send(activity);
+  });
+
+  app.get('/api/leads/:id/activities', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const activities = await prisma.activity.findMany({
+      where: { leadId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    return reply.send(activities);
+  });
+
+  app.delete('/api/leads/:id/activities/:activityId', async (req, reply) => {
+    const { activityId } = req.params as { id: string; activityId: string };
+    await prisma.activity.delete({ where: { id: activityId } });
+    return reply.send({ deleted: true });
+  });
+
+  app.post('/api/leads/:id/opportunities', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { stage, estimatedValue, probability, owner } = req.body as {
+      stage?: string;
+      estimatedValue?: number;
+      probability?: number;
+      owner?: string;
+    };
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) return reply.code(404).send({ error: 'Lead not found' });
+    const opp = await prisma.opportunity.create({
+      data: {
+        leadId: id,
+        companyId: lead.companyId,
+        stage: (stage as any) || 'DISCOVERY',
+        estimatedValue: estimatedValue || null,
+        probability: probability || null,
+        owner: owner || null,
+      },
+    });
+    return reply.code(201).send(opp);
+  });
+
+  app.patch('/api/leads/:id/opportunities/:oppId', async (req, reply) => {
+    const { oppId } = req.params as { id: string; oppId: string };
+    const data = req.body as Record<string, unknown>;
+    const opp = await prisma.opportunity.update({
+      where: { id: oppId },
+      data,
+    });
+    return reply.send(opp);
+  });
+
   app.get('/api/stats', async (req, reply) => {
-    const [total, mql, sql, signals] = await Promise.all([
+    const [total, mql, sql, signals, oppResult] = await Promise.all([
       prisma.lead.count(),
       prisma.lead.count({ where: { status: 'MQL' } }),
       prisma.lead.count({ where: { status: 'SQL' } }),
       prisma.leadSignal.count(),
+      prisma.opportunity.aggregate({ _sum: { estimatedValue: true }, _count: true }),
     ]);
-    return reply.send({ total, mql, sql, signals });
+    return reply.send({
+      total,
+      mql,
+      sql,
+      signals,
+      opportunities: oppResult._count,
+      pipeline: oppResult._sum.estimatedValue || 0,
+    });
   });
 
   app.get('/api/signals', async (req, reply) => {
@@ -73,6 +160,7 @@ export async function leadsRoutes(app: FastifyInstance) {
     if (secret && confirm !== secret) {
       return reply.code(401).send({ error: 'Invalid confirm secret' });
     }
+    await prisma.activity.deleteMany();
     await prisma.leadSignal.deleteMany();
     await prisma.opportunity.deleteMany();
     await prisma.lead.deleteMany();
