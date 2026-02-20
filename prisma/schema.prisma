@@ -60,6 +60,27 @@ enum LeadStatus {
   LOST
 }
 
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  leadId      String
+  type        ActivityType
+  title       String
+  notes       String?
+  doneAt      DateTime     @default(now())
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+
+  lead        Lead         @relation(fields: [leadId], references: [id])
+}
+
 model Lead {
   id                  String     @id @default(cuid())
   companyId           String     @unique
@@ -73,6 +94,7 @@ model Lead {
 
   company             Company    @relation(fields: [companyId], references: [id])
   opportunities       Opportunity[]
+  activities          Activity[]
 }
 
 enum OpportunityStage {
