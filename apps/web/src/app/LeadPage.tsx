@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK'];
-const ACTIVITY_ICONS = { CALL: 'ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ', EMAIL: 'ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§', MEETING: 'ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¤ÃÂÃÂÃÂÃÂ', NOTE: 'ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ', TASK: 'ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ' };
+const ACTIVITY_ICONS = { CALL: 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ', EMAIL: 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§', MEETING: 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¤ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ', NOTE: 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ', TASK: 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ' };
 const STATUS_COLORS = { NEW: '#475569', MQL: '#1d4ed8', SQL: '#15803d', LOST: '#991b1b' };
 const STAGE_COLORS = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
 
@@ -26,7 +26,7 @@ const card = { background: '#1e293b', borderRadius: '10px', padding: '16px', mar
 function ProbBadge({ value }: { value: string }) {
   const v = String(value || '').toLowerCase();
   const high = ['alta', 'alto', 'high'].includes(v);
-  const med = ['media', 'medio', 'medium', 'mÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©dio'].includes(v);
+  const med = ['media', 'medio', 'medium', 'mÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ©dio'].includes(v);
   const bg = high ? '#166534' : med ? '#1e3a5f' : '#1e293b';
   const color = high ? '#4ade80' : med ? '#60a5fa' : '#94a3b8';
   return <span style={{ background: bg, color, padding: '2px 8px', borderRadius: '8px', fontSize: '11px' }}>{value || '-'}</span>;
@@ -102,7 +102,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   }
 
   if (loading) return <div style={{ color: '#94a3b8', padding: '60px', textAlign: 'center', fontSize: '16px' }}>A carregar lead...</div>;
-  if (!lead || !lead.company) return <div style={{ color: '#ef4444', padding: '60px', textAlign: 'center' }}>Lead nÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o encontrado.</div>;
+  if (!lead || !lead.company) return <div style={{ color: '#ef4444', padding: '60px', textAlign: 'center' }}>Lead nÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o encontrado.</div>;
 
   const c = lead.company;
   const rawFields = (signal: any) => Object.entries(signal.rawData || {}).filter(([k]: [string, unknown]) => !['raw', 'dedupeKey', 'processed_at'].includes(k));
@@ -110,7 +110,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 0 60px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px', padding: '0' }}>ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Voltar ao Pipeline</button>
+        <button onClick={() => router.push('/')} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px', padding: '0' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Voltar ao Pipeline</button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
@@ -118,15 +118,15 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               <span style={{ background: (STATUS_COLORS as any)[lead.status] || '#475569', color: 'white', padding: '4px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700 }}>{lead.status}</span>
             </div>
             <div style={{ color: '#64748b', fontSize: '13px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              {c.domain && <span>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.domain}</span>}
-              {c.sector && <span>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.sector}</span>}
-              {c.country && <span>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.country}</span>}
-              {c.size && <span>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¥ {c.size}</span>}
+              {c.domain && <span>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.domain}</span>}
+              {c.sector && <span>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.sector}</span>}
+              {c.country && <span>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {c.country}</span>}
+              {c.size && <span>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¥ {c.size}</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {['NEW', 'MQL', 'SQL', 'LOST'].filter(s => s !== lead.status).map((s: any) => (
-              <button key={s} onClick={() => changeStatus(s)} style={{ background: (STATUS_COLORS as any)[s], color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {s}</button>
+              <button key={s} onClick={() => changeStatus(s)} style={{ background: (STATUS_COLORS as any)[s], color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 700 }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ {s}</button>
             ))}
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
           { id: 'signals', label: 'Sinais (' + (c.signals?.length || 0) + ')' },
           { id: 'activities', label: 'Atividades (' + (lead.activities?.length || 0) + ')' },
           { id: 'opportunities', label: 'Oportunidades (' + (lead.opportunities?.length || 0) + ')' },
-        ].map((t: {id: string, label: string}) => (
+        ].map((t: string) => (
           <button key={t.id} style={tabStyle(activeTab === t.id)} onClick={() => setActiveTab(t.id)}>{t.label}</button>
         ))}
       </div>
@@ -162,15 +162,15 @@ export default function LeadPage({ leadId }: { leadId: string }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>InformaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o Geral</div>
+              <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>InformaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o Geral</div>
               <button onClick={() => setEditingCompany(!editingCompany)} style={{ background: '#1e293b', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '12px', padding: '4px 10px', borderRadius: '6px' }}>
-                {editingCompany ? 'Cancelar' : 'ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¯ÃÂÃÂÃÂÃÂ¸ÃÂÃÂÃÂÃÂ Editar'}
+                {editingCompany ? 'Cancelar' : 'ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¯ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¸ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Editar'}
               </button>
             </div>
             <div style={card}>
               {editingCompany ? (
                 <>
-                  {[{key:'website',label:'Website'},{key:'country',label:'PaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­s'},{key:'sector',label:'Setor'},{key:'size',label:'DimensÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o'},{key:'description',label:'DescriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o'}].map((f: {key: string, label: string}) => (
+                  {[{key:'website',label:'Website'},{key:'country',label:'PaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­s'},{key:'sector',label:'Setor'},{key:'size',label:'DimensÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o'},{key:'description',label:'DescriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o'}].map((f: {key: string, label: string}) => (
                     <div key={f.key}>
                       <div style={{ color: '#475569', fontSize: '10px', textTransform: 'uppercase', marginBottom: '2px' }}>{f.label}</div>
                       <input value={(companyForm as any)[f.key]} onChange={e => setCompanyForm(cf => ({ ...cf, [f.key]: e.target.value }))} style={inputStyle} />
@@ -184,11 +184,11 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               ) : (
                 <>
                   {c.website && <div style={{ marginBottom: '10px' }}><div style={{ color: '#475569', fontSize: '10px', textTransform: 'uppercase', marginBottom: '2px' }}>Website</div><a href={c.website} target="_blank" style={{ color: '#7c3aed', fontSize: '13px' }}>{c.website}</a></div>}
-                  <Field label="DomÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­nio" value={c.domain} />
-                  <Field label="PaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­s" value={c.country} />
+                  <Field label="DomÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­nio" value={c.domain} />
+                  <Field label="PaÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­s" value={c.country} />
                   <Field label="Setor" value={c.sector} />
-                  <Field label="DimensÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o" value={c.size} />
-                  <Field label="DescriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o" value={c.description} />
+                  <Field label="DimensÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o" value={c.size} />
+                  <Field label="DescriÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ£o" value={c.description} />
                   <Field label="Criado em" value={new Date(c.createdAt).toLocaleDateString('pt-PT')} />
                 </>
               )}
@@ -200,21 +200,21 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             {c.contacts?.map((ct: any) => (
               <div key={ct.id} style={{ ...card, borderLeft: '3px solid #7c3aed' }}>
                 <div style={{ color: '#f8fafc', fontWeight: 700, fontSize: '15px', marginBottom: '6px' }}>{ct.name}</div>
-                {ct.role && <div style={{ color: '#60a5fa', fontSize: '13px', marginBottom: '4px' }}>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¼ {ct.role}</div>}
-                {ct.email && <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '4px' }}>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ <a href={'mailto:' + ct.email} style={{ color: '#7c3aed' }}>{ct.email}</a></div>}
+                {ct.role && <div style={{ color: '#60a5fa', fontSize: '13px', marginBottom: '4px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¼ {ct.role}</div>}
+                {ct.email && <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '4px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ§ <a href={'mailto:' + ct.email} style={{ color: '#7c3aed' }}>{ct.email}</a></div>}
                 {ct.sourceAgent && <div style={{ color: '#475569', fontSize: '11px' }}>via {ct.sourceAgent.replace('SAP_S4HANA_', '').replace('_Daily', '')}</div>}
               </div>
             ))}
             {c.signals?.[0] && (
               <>
-                <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', margin: '20px 0 12px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂltimo Sinal</div>
+                <div style={{ color: '#94a3b8', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', margin: '20px 0 12px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂltimo Sinal</div>
                 <div style={{ ...card, borderLeft: '3px solid #4ade80' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ color: '#7c3aed', fontSize: '12px', fontWeight: 700 }}>{c.signals[0].triggerType}</span>
                     <span style={{ color: '#4ade80', fontWeight: 700 }}>{Math.round(c.signals[0].score_final)}</span>
                   </div>
                   {c.signals[0].summary && <div style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '8px' }}>{c.signals[0].summary}</div>}
-                  {c.signals[0].sourceUrl && <a href={c.signals[0].sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px' }}>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Ver fonte</a>}
+                  {c.signals[0].sourceUrl && <a href={c.signals[0].sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Ver fonte</a>}
                 </div>
               </>
             )}
@@ -246,7 +246,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   </div>
                 ))}
               </div>
-              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px', display: 'block', marginTop: '10px' }}>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Ver fonte original</a>}
+              {s.sourceUrl && <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed', fontSize: '12px', display: 'block', marginTop: '10px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Ver fonte original</a>}
             </div>
           ))}
         </div>
@@ -260,11 +260,11 @@ export default function LeadPage({ leadId }: { leadId: string }) {
           {showActivityForm && (
             <div style={{ ...card, marginBottom: '20px' }}>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                {ACTIVITY_TYPES.map((t: {id: string, label: string}) => (
-                  <button key={t} onClick={() => setNewActivity(a => ({ ...a, type: t }))} style={{ background: newActivity.type === t ? '#7c3aed' : '#0f172a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>{ACTIVITY_ICONS[t]} {t}</button>
+                {ACTIVITY_TYPES.map((t: string) => (
+                  <button key={t} onClick={() => setNewActivity(a => ({ ...a, type: t }))} style={{ background: newActivity.type === t ? '#7c3aed' : '#0f172a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>{(ACTIVITY_ICONS as any)[t]} {t}</button>
                 ))}
               </div>
-              <input placeholder="TÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­tulo *" value={newActivity.title} onChange={e => setNewActivity(a => ({ ...a, title: e.target.value }))} style={inputStyle} />
+              <input placeholder="TÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ­tulo *" value={newActivity.title} onChange={e => setNewActivity(a => ({ ...a, title: e.target.value }))} style={inputStyle} />
               <textarea placeholder="Notas" value={newActivity.notes} onChange={e => setNewActivity(a => ({ ...a, notes: e.target.value }))} style={{ ...inputStyle, height: '100px', resize: 'vertical' }} />
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowActivityForm(false)} style={{ background: '#0f172a', color: '#94a3b8', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
@@ -276,14 +276,14 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             {(lead.activities?.length === 0 || !lead.activities) && <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Nenhuma atividade registada.</div>}
             {lead.activities?.map((a: any) => (
               <div key={a.id} style={{ ...card, display: 'flex', gap: '16px' }}>
-                <div style={{ fontSize: '24px' }}>{ACTIVITY_ICONS[a.type]}</div>
+                <div style={{ fontSize: '24px' }}>{(ACTIVITY_ICONS as any)[a.type]}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ color: '#f8fafc', fontWeight: 700, fontSize: '15px' }}>{a.title}</span>
                     <span style={{ color: '#475569', fontSize: '12px' }}>{new Date(a.createdAt).toLocaleDateString('pt-PT')}</span>
                   </div>
                   {a.notes && <div style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.5' }}>{a.notes}</div>}
-                  <div style={{ color: '#475569', fontSize: '11px', marginTop: '4px' }}>{a.type}{a.createdBy ? ' ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ· ' + a.createdBy : ''}</div>
+                  <div style={{ color: '#475569', fontSize: '11px', marginTop: '4px' }}>{a.type}{a.createdBy ? ' ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ· ' + a.createdBy : ''}</div>
                 </div>
               </div>
             ))}
@@ -303,8 +303,8 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   <button key={s} onClick={() => setNewOpp(o => ({ ...o, stage: s }))} style={{ background: newOpp.stage === s ? (STAGE_COLORS as any)[s] : '#0f172a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>{s}</button>
                 ))}
               </div>
-              <input placeholder="Valor estimado (ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¬)" value={newOpp.estimatedValue} onChange={e => setNewOpp(o => ({ ...o, estimatedValue: e.target.value }))} style={inputStyle} type="number" />
-              <input placeholder="ResponsÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¡vel" value={newOpp.owner} onChange={e => setNewOpp(o => ({ ...o, owner: e.target.value }))} style={inputStyle} />
+              <input placeholder="Valor estimado (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¬)" value={newOpp.estimatedValue} onChange={e => setNewOpp(o => ({ ...o, estimatedValue: e.target.value }))} style={inputStyle} type="number" />
+              <input placeholder="ResponsÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¡vel" value={newOpp.owner} onChange={e => setNewOpp(o => ({ ...o, owner: e.target.value }))} style={inputStyle} />
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                 <button onClick={() => setShowOppForm(false)} style={{ background: '#0f172a', color: '#94a3b8', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
                 <button onClick={addOpportunity} disabled={saving} style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '6px', cursor: 'pointer' }}>{saving ? 'A guardar...' : 'Guardar'}</button>
@@ -317,9 +317,9 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               <div key={o.id} style={{ ...card, borderTop: '3px solid ' + ((STAGE_COLORS as any)[o.stage] || '#475569') }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <span style={{ background: (STAGE_COLORS as any)[o.stage], color: 'white', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>{o.stage}</span>
-                  {o.estimatedValue && <span style={{ color: '#4ade80', fontWeight: 800, fontSize: '18px' }}>ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¬{Number(o.estimatedValue).toLocaleString('pt-PT')}</span>}
+                  {o.estimatedValue && <span style={{ color: '#4ade80', fontWeight: 800, fontSize: '18px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¬{Number(o.estimatedValue).toLocaleString('pt-PT')}</span>}
                 </div>
-                {o.owner && <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>ÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¤ {o.owner}</div>}
+                {o.owner && <div style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '6px' }}>ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ°ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¤ {o.owner}</div>}
                 <div style={{ color: '#475569', fontSize: '11px' }}>{new Date(o.createdAt).toLocaleDateString('pt-PT')}</div>
               </div>
             ))}
