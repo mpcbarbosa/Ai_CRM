@@ -332,7 +332,7 @@ export async function leadsRoutes(app: FastifyInstance) {
           userId: cUserId || null,
           userName: cUserName,
           action: 'COMPANY_EDITED',
-          details: { fields: Object.keys(req.body as object), values: req.body },
+          details: { fields: Object.keys(req.body as object), values: req.body as Record<string, unknown> } as any,
         },
       });
     }
