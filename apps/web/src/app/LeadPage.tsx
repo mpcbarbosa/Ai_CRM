@@ -34,6 +34,8 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   const [saving, setSaving] = useState(false);
   const [newActivity, setNewActivity] = useState({ type: 'CALL', title: '', notes: '' });
   const [newOpp, setNewOpp] = useState({ stage: 'DISCOVERY', estimatedValue: '', owner: '' });
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [scoreHistory, setScoreHistory] = useState<any[]>([]);
 
   const loadLead = useCallback(async () => {
     try {
@@ -48,6 +50,13 @@ export default function LeadPage({ leadId }: { leadId: string }) {
         size: data.company?.size || '',
         description: data.company?.description || '',
       });
+      // Load audit and score history
+      const [auditRes, scoreRes] = await Promise.all([
+        fetch(API + '/api/leads/' + leadId + '/audit'),
+        fetch(API + '/api/leads/' + leadId + '/score-history'),
+      ]);
+      setAuditLogs(await auditRes.json());
+      setScoreHistory(await scoreRes.json());
     } catch (e) {
       console.error(e);
     } finally {
@@ -102,6 +111,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
     { id: 'signals', label: 'Sinais (' + (c.signals?.length || 0) + ')' },
     { id: 'activities', label: 'Atividades (' + (lead.activities?.length || 0) + ')' },
     { id: 'opportunities', label: 'Oportunidades (' + (lead.opportunities?.length || 0) + ')' },
+    { id: 'history', label: 'Historico (' + auditLogs.length + ')' },
   ];
 
   return (
@@ -320,6 +330,125 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                 ))}
               </div>
             )}
+          </div>
+        )}
+      
+        {activeTab === 'history' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '20px', color: '#94a3b8' }}>Timeline de Eventos</div>
+                {auditLogs.length === 0 ? (
+                  <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Sem eventos registados ainda.</div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: '19px', top: 0, bottom: 0, width: '2px', background: '#1e293b' }} />
+                    {auditLogs.map((log: any) => {
+                      const actionColors: Record<string,string> = {
+                        LEAD_CREATED: '#4ade80', STATUS_CHANGED: '#f59e0b', SIGNAL_RECEIVED: '#7c3aed',
+                        COMPANY_EDITED: '#60a5fa', CONTACT_ADDED: '#34d399', ACTIVITY_CREATED: '#a78bfa',
+                        OPPORTUNITY_CREATED: '#fb923c', OPPORTUNITY_UPDATED: '#f97316',
+                        LEAD_ASSIGNED: '#38bdf8', LEAD_QUALIFIED: '#4ade80',
+                        LEAD_TAGGED: '#e879f9', NOTE_ADDED: '#94a3b8', SCORE_UPDATED: '#7c3aed',
+                      };
+                      const actionLabels: Record<string,string> = {
+                        LEAD_CREATED: 'Lead criada', STATUS_CHANGED: 'Estado alterado',
+                        SIGNAL_RECEIVED: 'Sinal recebido', COMPANY_EDITED: 'Empresa editada',
+                        CONTACT_ADDED: 'Contacto adicionado', ACTIVITY_CREATED: 'Atividade criada',
+                        OPPORTUNITY_CREATED: 'Oportunidade criada', OPPORTUNITY_UPDATED: 'Oportunidade atualizada',
+                        LEAD_ASSIGNED: 'Lead atribuida', LEAD_QUALIFIED: 'Lead qualificada',
+                        LEAD_TAGGED: 'Tags atualizadas', NOTE_ADDED: 'Nota adicionada',
+                        SCORE_UPDATED: 'Score atualizado',
+                      };
+                      const color = actionColors[log.action] || '#475569';
+                      return (
+                        <div key={log.id} style={{ display: 'flex', gap: '16px', marginBottom: '20px', position: 'relative' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: color + '22', border: '2px solid ' + color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1 }}>
+                            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color }} />
+                          </div>
+                          <div style={{ background: '#1e293b', borderRadius: '10px', padding: '14px 16px', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '13px', color }}>{actionLabels[log.action] || log.action}</span>
+                              <span style={{ color: '#475569', fontSize: '11px' }}>{new Date(log.createdAt).toLocaleString('pt-PT')}</span>
+                            </div>
+                            <div style={{ color: '#64748b', fontSize: '11px', marginBottom: '6px' }}>por {log.userName}</div>
+                            {log.action === 'STATUS_CHANGED' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                                <span style={{ background: '#334155', padding: '2px 8px', borderRadius: '4px' }}>{log.details?.from}</span>
+                                <span style={{ color: '#475569' }}>-&gt;</span>
+                                <span style={{ background: '#7c3aed', color: 'white', padding: '2px 8px', borderRadius: '4px' }}>{log.details?.to}</span>
+                                {log.details?.lostReason && <span style={{ color: '#ef4444', fontSize: '11px' }}>Motivo: {log.details.lostReason}</span>}
+                              </div>
+                            )}
+                            {log.action === 'SIGNAL_RECEIVED' && (
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                {log.details?.triggerType} - Score: <span style={{ color: '#4ade80', fontWeight: 700 }}>{log.details?.score}</span>
+                              </div>
+                            )}
+                            {log.action === 'ACTIVITY_CREATED' && (
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>{log.details?.type}: {log.details?.title}</div>
+                            )}
+                            {log.action === 'COMPANY_EDITED' && (
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Campos: {(log.details?.fields || []).join(', ')}</div>
+                            )}
+                            {log.action === 'LEAD_ASSIGNED' && (
+                              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Atribuido a: {log.details?.assignedTo}</div>
+                            )}
+                            {log.action === 'NOTE_ADDED' && (
+                              <div style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>{log.details?.notes}</div>
+                            )}
+                            {log.action === 'LEAD_TAGGED' && (
+                              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                {(log.details?.tags || []).map((tag: string) => (
+                                  <span key={tag} style={{ background: '#7c3aed33', color: '#a78bfa', padding: '2px 8px', borderRadius: '12px', fontSize: '11px' }}>{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '20px', color: '#94a3b8' }}>Evolucao do Score</div>
+                {scoreHistory.length === 0 ? (
+                  <div style={{ ...card, color: '#475569', textAlign: 'center', padding: '30px', fontSize: '13px' }}>Sem historico de score</div>
+                ) : (
+                  <div style={card}>
+                    {scoreHistory.map((s: any, i: number) => (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ color: '#475569', fontSize: '10px', width: '70px' }}>{new Date(s.createdAt).toLocaleDateString('pt-PT')}</div>
+                        <div style={{ flex: 1, height: '6px', background: '#0f172a', borderRadius: '3px' }}>
+                          <div style={{ width: Math.min(s.score, 150) / 150 * 100 + '%', height: '100%', background: s.score >= 100 ? '#4ade80' : s.score >= 70 ? '#60a5fa' : '#475569', borderRadius: '3px' }} />
+                        </div>
+                        <div style={{ color: s.score >= 100 ? '#4ade80' : s.score >= 70 ? '#60a5fa' : '#94a3b8', fontWeight: 700, fontSize: '13px', width: '35px', textAlign: 'right' }}>{Math.round(s.score)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ fontSize: '14px', fontWeight: 700, margin: '20px 0 12px', color: '#94a3b8' }}>Adicionar Nota</div>
+                <div style={card}>
+                  <textarea placeholder="Nota rapida sobre esta lead..." style={{ ...inputStyle, height: '80px', resize: 'vertical', marginBottom: '10px' }}
+                    id="quick-note" />
+                  <button onClick={async () => {
+                    const el = document.getElementById('quick-note') as HTMLTextAreaElement;
+                    if (!el?.value) return;
+                    await fetch(API + '/api/leads/' + leadId, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', 'x-user-name': 'Miguel' },
+                      body: JSON.stringify({ notes: el.value }),
+                    });
+                    el.value = '';
+                    loadLead();
+                  }} style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, width: '100%' }}>
+                    Guardar Nota
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
