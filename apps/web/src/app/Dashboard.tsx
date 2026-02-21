@@ -18,7 +18,7 @@ function ScoreBar({ score }: { score: number }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string,string> = { NEW: '#475569', MQL: '#1d4ed8', SQL: '#15803d', LOST: '#991b1b' };
+  const colors: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d' };
   return <span style={{ background: colors[status] || '#475569', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{status}</span>;
 }
 
