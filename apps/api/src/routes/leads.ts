@@ -367,6 +367,17 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send({ sectors });
   });
 
+  app.post('/api/admin/resolve-migration', async (req, reply) => {
+    // Resolve failed migration 20260221000002 by marking it as rolled back
+    await prisma.$executeRawUnsafe(`
+      UPDATE "_prisma_migrations" 
+      SET rolled_back_at = NOW(), finished_at = NULL
+      WHERE migration_name = '20260221000002_update_lead_status'
+      AND rolled_back_at IS NULL
+    `);
+    return reply.send({ message: 'Migration marked as rolled back, redeploy to re-apply' });
+  });
+
   app.post('/api/admin/reset', async (req, reply) => {
     const secret = process.env.RESET_SECRET;
     const { confirm } = req.body as { confirm?: string };
