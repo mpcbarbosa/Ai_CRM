@@ -388,9 +388,11 @@ export async function leadsRoutes(app: FastifyInstance) {
     if (secret && confirm !== secret) {
       return reply.code(401).send({ error: 'Invalid confirm secret' });
     }
+    await prisma.auditLog.deleteMany();
+    await prisma.scoreHistory.deleteMany();
     await prisma.activity.deleteMany();
-    await prisma.leadSignal.deleteMany();
     await prisma.opportunity.deleteMany();
+    await prisma.leadSignal.deleteMany();
     await prisma.lead.deleteMany();
     await prisma.contact.deleteMany();
     await prisma.company.deleteMany();
