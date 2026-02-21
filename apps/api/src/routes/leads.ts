@@ -154,6 +154,44 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(signals);
   });
 
+  
+  // PATCH /api/companies/:id - edit company info
+  app.patch('/api/companies/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { website, country, sector, size, description } = req.body as {
+      website?: string;
+      country?: string;
+      sector?: string;
+      size?: string;
+      description?: string;
+    };
+    const company = await prisma.company.update({
+      where: { id },
+      data: {
+        website: website ?? undefined,
+        country: country ?? undefined,
+        sector: sector ?? undefined,
+        size: size ?? undefined,
+        description: description ?? undefined,
+        updatedAt: new Date(),
+      },
+    });
+    return reply.send(company);
+  });
+
+  // GET /api/sectors - list sector investment signals
+  app.get('/api/sectors', async (req, reply) => {
+    const query = req.query as Record<string, string>;
+    const limit = Number(query.limit || 100);
+    const sectors = await prisma.leadSignal.findMany({
+      where: { triggerType: 'SECTOR_INVESTMENT' },
+      include: { company: true },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    return reply.send({ sectors });
+  });
+
   app.post('/api/admin/reset', async (req, reply) => {
     const secret = process.env.RESET_SECRET;
     const { confirm } = req.body as { confirm?: string };
