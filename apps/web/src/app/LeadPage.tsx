@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
-const STATUS_COLORS: Record<string,string> = { NEW: '#475569', MQL: '#1d4ed8', SQL: '#15803d', LOST: '#991b1b' };
+const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d' };
 const STAGE_COLORS: Record<string,string> = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK'];
 const ACTIVITY_ICONS: Record<string,string> = { CALL: 'Tel', EMAIL: 'Email', MEETING: 'Meet', NOTE: 'Nota', TASK: 'Task' };
@@ -138,10 +138,10 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             {c.size && <span>{c.size}</span>}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {['MQL', 'SQL', 'LOST'].map((s: string) => (
+            {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
               <button key={s} onClick={() => changeStatus(s)}
                 style={{ background: STATUS_COLORS[s], color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
-                Mover para {s}
+                {s === 'UNDER_QUALIFICATION' ? 'Under Qualification' : s === 'DISCARDED' ? 'Descartar' : 'Mover para ' + s}
               </button>
             ))}
           </div>
