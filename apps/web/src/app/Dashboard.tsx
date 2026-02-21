@@ -4,6 +4,16 @@ import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 
+function EmptyState({ msg }: { msg: string }) {
+  return <div style={{ padding: '40px', textAlign: 'center', color: '#475569', fontSize: '14px' }}>{msg}</div>;
+}
+
+function ProbBadge({ value }: { value: string }) {
+  const high = ['alta', 'high'].includes(value);
+  const med = ['media', 'médio', 'medio', 'medium'].includes(value);
+  return <span style={{ background: high ? '#15803d' : med ? '#1d4ed8' : '#475569', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{value || '-'}</span>;
+}
+
 const tabStyle = (active: boolean) => ({
   padding: '10px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
   borderRadius: '8px 8px 0 0', border: 'none', background: active ? '#1e293b' : 'transparent',
