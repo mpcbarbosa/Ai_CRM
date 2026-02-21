@@ -75,9 +75,10 @@ model LeadSignal {
 
 enum LeadStatus {
   NEW
+  UNDER_QUALIFICATION
   MQL
   SQL
-  LOST
+  DISCARDED
 }
 
 enum ActivityType {
