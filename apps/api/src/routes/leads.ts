@@ -157,7 +157,7 @@ export async function leadsRoutes(app: FastifyInstance) {
         status,
         salesQualified: status === 'SQL',
         marketingQualified: status === 'MQL' || status === 'SQL',
-        lostReason: lostReason ?? undefined,
+        lostReason: (status === 'DISCARDED' ? lostReason : undefined) ?? undefined,
         updatedAt: new Date(),
       },
     });
@@ -172,7 +172,7 @@ export async function leadsRoutes(app: FastifyInstance) {
       },
     });
 
-    if (status === 'MQL' || status === 'SQL') {
+    if (status === 'MQL' || status === 'SQL' || status === 'UNDER_QUALIFICATION') {
       await prisma.auditLog.create({
         data: {
           leadId: id,
