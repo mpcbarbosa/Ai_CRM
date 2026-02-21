@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 
+const tabStyle = (active: boolean) => ({
+  padding: '10px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+  borderRadius: '8px 8px 0 0', border: 'none', background: active ? '#1e293b' : 'transparent',
+  color: active ? '#f8fafc' : '#64748b', borderBottom: active ? '2px solid #7c3aed' : '2px solid transparent',
+} as const);
+
 export default function Dashboard() {
   const [tab, setTab] = useState('pipeline');
   const [stats, setStats] = useState({ total: 0, mql: 0, sql: 0, opportunities: 0, pipeline: 0 });
