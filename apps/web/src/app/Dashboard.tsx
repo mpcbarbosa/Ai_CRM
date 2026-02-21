@@ -4,6 +4,24 @@ import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 
+function ScoreBar({ score }: { score: number }) {
+  const s = score || 0;
+  const color = s >= 100 ? '#4ade80' : s >= 70 ? '#60a5fa' : '#475569';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <span style={{ color, fontWeight: 700, fontSize: '13px', minWidth: '28px' }}>{s}</span>
+      <div style={{ flex: 1, height: '4px', background: '#1e293b', borderRadius: '2px', minWidth: '60px' }}>
+        <div style={{ width: Math.min(s, 100) + '%', height: '100%', background: color, borderRadius: '2px' }} />
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string,string> = { NEW: '#475569', MQL: '#1d4ed8', SQL: '#15803d', LOST: '#991b1b' };
+  return <span style={{ background: colors[status] || '#475569', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{status}</span>;
+}
+
 function EmptyState({ msg }: { msg: string }) {
   return <div style={{ padding: '40px', textAlign: 'center', color: '#475569', fontSize: '14px' }}>{msg}</div>;
 }
