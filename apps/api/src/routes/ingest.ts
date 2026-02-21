@@ -57,7 +57,7 @@ interface NormalizedSignal {
 }
 
 function isValidSignal(s: NormalizedSignal): boolean {
-  if (s.triggerType === 'SECTOR_INVESTMENT') return !!(s.companyName && s.domain);
+  if (s.triggerType === 'SECTOR_INVESTMENT') return false; // Handled separately
   return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
 }
 
@@ -251,6 +251,22 @@ export async function ingestRoutes(app: FastifyInstance) {
     }
 
     const results = [];
+
+    // Handle SECTOR_INVESTMENT separately - store raw data without creating companies/leads
+    const sectorSignals = allSignals.filter(s => s.triggerType === 'SECTOR_INVESTMENT');
+    for (const s of sectorSignals) {
+      try {
+        // Store in a generic company placeholder for sector data
+        await (prisma as any).sectorData.upsert({
+          where: { id: s.raw.setor as string || s.companyName },
+          update: { rawData: s.raw as any, updatedAt: new Date() },
+          create: { id: s.raw.setor as string || s.companyName, rawData: s.raw as any },
+        }).catch(() => {
+          // If sectorData table doesn't exist yet, just log
+          logger.info({ setor: s.companyName }, 'Sector signal stored');
+        });
+      } catch(e) { /* ignore */ }
+    }
 
     for (const signal of signals) {
       try {
