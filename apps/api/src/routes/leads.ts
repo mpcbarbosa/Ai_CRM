@@ -15,7 +15,11 @@ export async function leadsRoutes(app: FastifyInstance) {
       },
       orderBy: { totalScore: 'desc' },
     });
-    return reply.send(leads);
+    const filtered = leads.filter((l: any) => {
+      const sig = l.company?.signals?.[0];
+      return !sig || sig.triggerType !== 'SECTOR_INVESTMENT';
+    });
+    return reply.send(filtered);
   });
 
   app.get('/api/leads/:id', async (req, reply) => {
