@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(COMMERCIAL)
+  avatar    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  auditLogs AuditLog[]
+  activities Activity[]
+  leads     Lead[]   @relation("AssignedLeads")
+}
+
+enum UserRole {
+  ADMIN
+  COMMERCIAL
+  READONLY
+}
+
 model Company {
   id          String    @id @default(cuid())
   name        String
@@ -18,7 +38,6 @@ model Company {
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
   contacts    Contact[]
   signals     LeadSignal[]
   lead        Lead?
@@ -30,9 +49,10 @@ model Contact {
   name        String
   email       String?
   role        String?
+  phone       String?
+  linkedin    String?
   sourceAgent String?
   createdAt   DateTime @default(now())
-
   company     Company  @relation(fields: [companyId], references: [id])
 }
 
@@ -48,8 +68,8 @@ model LeadSignal {
   probability      Float?
   summary          String?
   sourceUrl        String?
+  detectedAt       DateTime @default(now())
   createdAt        DateTime @default(now())
-
   company          Company  @relation(fields: [companyId], references: [id])
 }
 
@@ -69,16 +89,19 @@ enum ActivityType {
 }
 
 model Activity {
-  id          String       @id @default(cuid())
-  leadId      String
-  type        ActivityType
-  title       String
-  notes       String?
-  doneAt      DateTime     @default(now())
-  createdBy   String?
-  createdAt   DateTime     @default(now())
-
-  lead        Lead         @relation(fields: [leadId], references: [id])
+  id            String       @id @default(cuid())
+  leadId        String
+  type          ActivityType
+  title         String
+  notes         String?
+  nextAction    String?
+  nextActionAt  DateTime?
+  doneAt        DateTime     @default(now())
+  createdBy     String?
+  userId        String?
+  createdAt     DateTime     @default(now())
+  lead          Lead         @relation(fields: [leadId], references: [id])
+  user          User?        @relation(fields: [userId], references: [id])
 }
 
 model Lead {
@@ -88,13 +111,19 @@ model Lead {
   marketingQualified  Boolean    @default(false)
   salesQualified      Boolean    @default(false)
   totalScore          Float      @default(0)
+  assignedToId        String?
+  tags                String[]   @default([])
+  notes               String?
+  lostReason          String?
   lastActivityDate    DateTime   @default(now())
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
-
   company             Company    @relation(fields: [companyId], references: [id])
+  assignedTo          User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
   opportunities       Opportunity[]
   activities          Activity[]
+  auditLogs           AuditLog[]
+  scoreHistory        ScoreHistory[]
 }
 
 enum OpportunityStage {
@@ -113,7 +142,46 @@ model Opportunity {
   estimatedValue Float?
   probability    Float?
   owner          String?
+  lostReason     String?
   createdAt      DateTime         @default(now())
-
+  updatedAt      DateTime         @updatedAt
   lead           Lead             @relation(fields: [leadId], references: [id])
+}
+
+enum AuditAction {
+  LEAD_CREATED
+  STATUS_CHANGED
+  SIGNAL_RECEIVED
+  COMPANY_EDITED
+  CONTACT_ADDED
+  ACTIVITY_CREATED
+  OPPORTUNITY_CREATED
+  OPPORTUNITY_UPDATED
+  LEAD_ASSIGNED
+  LEAD_QUALIFIED
+  LEAD_TAGGED
+  NOTE_ADDED
+  SCORE_UPDATED
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  leadId    String
+  userId    String?
+  userName  String
+  action    AuditAction
+  details   Json
+  createdAt DateTime    @default(now())
+  lead      Lead        @relation(fields: [leadId], references: [id])
+  user      User?       @relation(fields: [userId], references: [id])
+}
+
+model ScoreHistory {
+  id        String   @id @default(cuid())
+  leadId    String
+  score     Float
+  triggerType String?
+  agentName   String?
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id])
 }
