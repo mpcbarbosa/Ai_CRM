@@ -311,6 +311,10 @@ export async function leadsRoutes(app: FastifyInstance) {
       size?: string;
       description?: string;
     };
+
+    // Capture previous values
+    const before = await prisma.company.findUnique({ where: { id } });
+
     const company = await prisma.company.update({
       where: { id },
       data: {
@@ -322,6 +326,17 @@ export async function leadsRoutes(app: FastifyInstance) {
         updatedAt: new Date(),
       },
     });
+
+    // Build diff
+    const fields = req.body as Record<string, string>;
+    const changes: Record<string, { before: any; after: any }> = {};
+    for (const key of Object.keys(fields)) {
+      const beforeVal = (before as any)?.[key];
+      const afterVal = (company as any)[key];
+      if (beforeVal !== afterVal) {
+        changes[key] = { before: beforeVal ?? null, after: afterVal ?? null };
+      }
+    }
     const cUserName = (req.headers['x-user-name'] as string) || 'System_GobiiAgent';
     const cUserId = (req.headers['x-user-id'] as string) || null;
     const companyLead = await prisma.lead.findUnique({ where: { companyId: id } });
