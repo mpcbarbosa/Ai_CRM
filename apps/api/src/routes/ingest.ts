@@ -318,8 +318,8 @@ export async function ingestRoutes(app: FastifyInstance) {
         const totalScore = recentSignals.reduce((sum, s) => sum + s.score_final, 0);
 
         const currentLead = await prisma.lead.findUnique({ where: { companyId: company.id } });
-        let newStatus: 'NEW' | 'MQL' | 'SQL' | 'LOST' = (currentLead?.status as any) || 'NEW';
-        if (newStatus !== 'SQL' && newStatus !== 'LOST') {
+        let newStatus: 'NEW' | 'UNDER_QUALIFICATION' | 'MQL' | 'SQL' | 'DISCARDED' = (currentLead?.status as any) || 'NEW';
+        if (newStatus !== 'SQL' && newStatus !== 'DISCARDED') {
           if (totalScore >= MQL_THRESHOLD) newStatus = 'MQL';
         }
 
