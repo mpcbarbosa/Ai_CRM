@@ -37,18 +37,153 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(lead);
   });
 
-  app.patch('/api/leads/:id/status', async (req, reply) => {
+
+  // GET /api/leads/:id/audit - full audit timeline
+  app.get('/api/leads/:id/audit', async (req, reply) => {
     const { id } = req.params as { id: string };
-    const { status } = req.body as { status: LeadStatus };
+    const logs = await prisma.auditLog.findMany({
+      where: { leadId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    return reply.send(logs);
+  });
+
+  // GET /api/leads/:id/score-history - score evolution
+  app.get('/api/leads/:id/score-history', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const history = await prisma.scoreHistory.findMany({
+      where: { leadId: id },
+      orderBy: { createdAt: 'asc' },
+    });
+    return reply.send(history);
+  });
+
+  // PATCH /api/leads/:id - update lead fields (notes, tags, assignedTo, lostReason)
+  app.patch('/api/leads/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { notes, tags, assignedToId, lostReason } = req.body as {
+      notes?: string;
+      tags?: string[];
+      assignedToId?: string;
+      lostReason?: string;
+    };
+    const userName = (req.headers['x-user-name'] as string) || 'System_GobiiAgent';
+    const userId = (req.headers['x-user-id'] as string) || null;
+
+    const lead = await prisma.lead.update({
+      where: { id },
+      data: {
+        notes: notes ?? undefined,
+        tags: tags ?? undefined,
+        assignedToId: assignedToId ?? undefined,
+        lostReason: lostReason ?? undefined,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (assignedToId) {
+      const assignedUser = await prisma.user.findUnique({ where: { id: assignedToId } });
+      await prisma.auditLog.create({
+        data: {
+          leadId: id,
+          userId: userId || null,
+          userName,
+          action: 'LEAD_ASSIGNED',
+          details: { assignedTo: assignedUser?.name || assignedToId },
+        },
+      });
+    }
+    if (notes !== undefined) {
+      await prisma.auditLog.create({
+        data: {
+          leadId: id,
+          userId: userId || null,
+          userName,
+          action: 'NOTE_ADDED',
+          details: { notes },
+        },
+      });
+    }
+    if (tags !== undefined) {
+      await prisma.auditLog.create({
+        data: {
+          leadId: id,
+          userId: userId || null,
+          userName,
+          action: 'LEAD_TAGGED',
+          details: { tags },
+        },
+      });
+    }
+
+    return reply.send(lead);
+  });
+
+  // GET /api/users - list users
+  app.get('/api/users', async (req, reply) => {
+    const users = await prisma.user.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    return reply.send(users);
+  });
+
+  // POST /api/users - create user
+  app.post('/api/users', async (req, reply) => {
+    const { email, name, role } = req.body as { email: string; name: string; role?: string };
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        role: (role as any) || 'COMMERCIAL',
+      },
+    });
+    return reply.code(201).send(user);
+  });
+
+  // PATCH /api/leads/:id/status with audit
+    app.patch('/api/leads/:id/status', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { status, lostReason } = req.body as { status: LeadStatus; lostReason?: string };
+    const userName = (req.headers['x-user-name'] as string) || 'System_GobiiAgent';
+    const userId = (req.headers['x-user-id'] as string) || null;
+
+    const currentLead = await prisma.lead.findUnique({ where: { id } });
+    const previousStatus = currentLead?.status;
+
     const lead = await prisma.lead.update({
       where: { id },
       data: {
         status,
         salesQualified: status === 'SQL',
         marketingQualified: status === 'MQL' || status === 'SQL',
+        lostReason: lostReason ?? undefined,
         updatedAt: new Date(),
       },
     });
+
+    await prisma.auditLog.create({
+      data: {
+        leadId: id,
+        userId: userId || null,
+        userName,
+        action: 'STATUS_CHANGED',
+        details: { from: previousStatus, to: status, lostReason: lostReason || null },
+      },
+    });
+
+    if (status === 'MQL' || status === 'SQL') {
+      await prisma.auditLog.create({
+        data: {
+          leadId: id,
+          userId: userId || null,
+          userName,
+          action: 'LEAD_QUALIFIED',
+          details: { status, qualifiedAt: new Date().toISOString() },
+        },
+      });
+    }
+
     return reply.send(lead);
   });
 
@@ -72,6 +207,17 @@ export async function leadsRoutes(app: FastifyInstance) {
     await prisma.lead.update({
       where: { id },
       data: { lastActivityDate: new Date(), updatedAt: new Date() },
+    });
+    const aUserName = (req.headers['x-user-name'] as string) || createdBy || 'System_GobiiAgent';
+    const aUserId = (req.headers['x-user-id'] as string) || null;
+    await prisma.auditLog.create({
+      data: {
+        leadId: id,
+        userId: aUserId || null,
+        userName: aUserName,
+        action: 'ACTIVITY_CREATED',
+        details: { type, title, notes: notes || null },
+      },
     });
     return reply.code(201).send(activity);
   });
@@ -176,6 +322,20 @@ export async function leadsRoutes(app: FastifyInstance) {
         updatedAt: new Date(),
       },
     });
+    const cUserName = (req.headers['x-user-name'] as string) || 'System_GobiiAgent';
+    const cUserId = (req.headers['x-user-id'] as string) || null;
+    const companyLead = await prisma.lead.findUnique({ where: { companyId: id } });
+    if (companyLead) {
+      await prisma.auditLog.create({
+        data: {
+          leadId: companyLead.id,
+          userId: cUserId || null,
+          userName: cUserName,
+          action: 'COMPANY_EDITED',
+          details: { fields: Object.keys(req.body as object), values: req.body },
+        },
+      });
+    }
     return reply.send(company);
   });
 
