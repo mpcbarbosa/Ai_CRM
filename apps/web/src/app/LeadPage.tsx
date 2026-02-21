@@ -181,8 +181,18 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                       <input value={(companyForm as any)[f.key]} onChange={e => setCompanyForm((cf: any) => ({ ...cf, [f.key]: e.target.value }))} style={inputStyle} />
                     </div>
                   ))}
-                  <button onClick={() => setEditMode(false)} style={{ background: '#4ade80', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
-                    Guardar
+                  <button onClick={async () => {
+                    setSaving(true);
+                    await fetch(API + '/api/companies/' + c.id, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(companyForm),
+                    });
+                    setSaving(false);
+                    setEditMode(false);
+                    loadLead();
+                  }} style={{ background: saving ? '#475569' : '#4ade80', color: '#0f172a', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                    {saving ? 'A guardar...' : 'Guardar'}
                   </button>
                 </div>
               ) : (
