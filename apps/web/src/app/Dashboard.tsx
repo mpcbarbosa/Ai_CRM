@@ -32,6 +32,26 @@ function ProbBadge({ value }: { value: string }) {
   return <span style={{ background: high ? '#15803d' : med ? '#1d4ed8' : '#475569', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{value || '-'}</span>;
 }
 
+function isNew(dateStr: string) {
+  return new Date().getTime() - new Date(dateStr).getTime() < 48 * 60 * 60 * 1000;
+}
+
+function NewBadge({ date }: { date: string }) {
+  if (!isNew(date)) return null;
+  return <span style={{ background: '#7c3aed', color: 'white', padding: '1px 6px', borderRadius: '8px', fontSize: '10px', fontWeight: 700, marginLeft: '6px' }}>NOVO</span>;
+}
+
+function DateCell({ date }: { date: string }) {
+  if (!date) return <span style={{ color: '#475569' }}>-</span>;
+  const d = new Date(date);
+  return (
+    <div>
+      <div style={{ color: '#94a3b8', fontSize: '12px' }}>{d.toLocaleDateString('pt-PT')}</div>
+      <div style={{ color: '#475569', fontSize: '11px' }}>{d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+  );
+}
+
 const tabStyle = (active: boolean) => ({
   padding: '10px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
   borderRadius: '8px 8px 0 0', border: 'none', background: active ? '#1e293b' : 'transparent',
@@ -150,13 +170,13 @@ export default function Dashboard() {
                     <tr key={lead.id} onClick={() => router.push('/leads/' + lead.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.sector || '-'}</td>
                       <td style={{ padding: '12px 16px' }}><ScoreBar score={lead.totalScore} /></td>
                       <td style={{ padding: '12px 16px' }}><StatusBadge status={lead.status} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px' }}>{lead.company?.signals?.[0]?.triggerType || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#7c3aed', fontSize: '12px' }}>{lead.company?.signals?.[0]?.agentName?.replace('SAP_S4HANA_', '').replace('_Daily', '').replace('_Excel', '') || '-'}</td>
-                      <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12px' }}>{lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString('pt-PT') : '-'}</td>
+                      <td style={{ padding: '12px 16px' }}><DateCell date={lead.createdAt} /></td>
                     </tr>
                   ))}
               </tbody>
@@ -184,14 +204,14 @@ export default function Dashboard() {
                     <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.companyId}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.companyId}<NewBadge date={s.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || r.country || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || r.sector || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.nome_pessoa || r.pessoa || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.cargo || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
-                      <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12px' }}>{new Date(s.detectedAt || s.createdAt).toLocaleDateString('pt-PT')}</td>
+                      <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                     </tr>
                   );})}
               </tbody>
@@ -216,13 +236,13 @@ export default function Dashboard() {
                 {rfps.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhum RFP registado." /></td></tr>
                   : rfps.map((s: any) => { const r = s.rawData || {}; return (
                     <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.entidade || r.empresa || '-'}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.entidade || r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || r.country || 'PT'}</td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '300px' }}>{r.descricao || r.titulo || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#4ade80' }}>{r.valor_estimado || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#fb923c' }}>{r.prazo || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
-                      <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12px' }}>{new Date(s.detectedAt || s.createdAt).toLocaleDateString('pt-PT')}</td>
+                      <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                     </tr>
                   );})}
               </tbody>
@@ -242,6 +262,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Impacto ERP</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Prob. ERP</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
               </tr></thead>
               <tbody>
                 {expansions.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhuma expansao registada." /></td></tr>
@@ -249,13 +270,14 @@ export default function Dashboard() {
                     <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || '-'}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || r.country || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || r.sector || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
                       <td style={{ padding: '12px 16px' }}><ProbBadge value={r.probabilidade_erp || ''} /></td>
                       <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
+                      <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                     </tr>
                   );})}
               </tbody>
@@ -282,7 +304,7 @@ export default function Dashboard() {
                     <tr key={lead.id} onClick={() => router.push('/leads/' + lead.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.country || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.sector || '-'}</td>
                       <td style={{ padding: '12px 16px' }}><ScoreBar score={lead.totalScore} /></td>
@@ -310,12 +332,13 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Nota</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Score</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
               </tr></thead>
               <tbody>
                 {sectors.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma analise setorial registada." /></td></tr>
                   : sectors.map((s: any) => { const r = s.rawData || s; return (
                     <tr key={s.id || r.setor} style={{ borderBottom: '1px solid #1e293b' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.setor || '-'}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.setor || '-'}<NewBadge date={s.createdAt} /></td>
                       <td style={{ padding: '12px 16px', color: '#4ade80' }}>{r.crescimento || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#60a5fa' }}>{r.investimento || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.maturidade_tech || '-'}</td>
@@ -324,6 +347,7 @@ export default function Dashboard() {
                       <td style={{ padding: '12px 16px', color: '#fb923c', fontWeight: 700 }}>{r.nota_final || '-'}</td>
                       <td style={{ padding: '12px 16px' }}><ScoreBar score={Number(r.score_investimento) || 0} /></td>
                       <td style={{ padding: '12px 16px' }}>{r.fonte_principal ? <a href={r.fonte_principal} target="_blank" style={{ color: '#7c3aed' }}>Ver fonte</a> : '-'}</td>
+                      <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
                     </tr>
                   );})}
               </tbody>
