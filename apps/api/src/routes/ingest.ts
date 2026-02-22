@@ -58,6 +58,9 @@ interface NormalizedSignal {
 
 function isValidSignal(s: NormalizedSignal): boolean {
   if (s.triggerType === 'SECTOR_INVESTMENT') return false; // Handled separately
+  if (s.triggerType === 'RFP_SIGNAL' || s.triggerType === 'CLEVEL_CHANGE') {
+    return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-');
+  }
   return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
 }
 
@@ -135,7 +138,8 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       }
       return {
         companyName: String(item.entidade || ''),
-        domain: normalizeDomain(undefined, item.entidade as string),
+        domain: normalizeDomain(undefined, item.entidade as string) || 
+          String(item.entidade || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 40) + '.rfp.pt',
         country: item.pais as string,
         triggerType,
         summary: item.descricao as string,
