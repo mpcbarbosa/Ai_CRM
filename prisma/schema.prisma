@@ -186,3 +186,9 @@ model ScoreHistory {
   createdAt DateTime @default(now())
   lead      Lead     @relation(fields: [leadId], references: [id])
 }
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
