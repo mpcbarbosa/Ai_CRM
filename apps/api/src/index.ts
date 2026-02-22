@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { ingestRoutes } from './routes/ingest';
+import { settingsRoutes } from './routes/settings';
 import { leadsRoutes } from './routes/leads';
 import { logger } from './lib/logger';
 
