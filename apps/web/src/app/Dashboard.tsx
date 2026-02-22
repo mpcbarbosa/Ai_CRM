@@ -210,7 +210,7 @@ export default function Dashboard() {
                       <td style={{ padding: '12px 16px' }}>{r.nome_pessoa || r.pessoa || '-'}</td>
                       <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.cargo || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
-                      <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
+                      <td style={{ padding: '12px 16px' }}>{s.sourceUrl && s.sourceUrl !== 'null' && s.sourceUrl.startsWith('http') ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
                       <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                     </tr>
                   );})}
@@ -276,7 +276,7 @@ export default function Dashboard() {
                       <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || '-'}</td>
                       <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
                       <td style={{ padding: '12px 16px' }}><ProbBadge value={r.probabilidade_erp || ''} /></td>
-                      <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
+                      <td style={{ padding: '12px 16px' }}>{s.sourceUrl && s.sourceUrl !== 'null' && s.sourceUrl.startsWith('http') ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
                       <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                     </tr>
                   );})}
