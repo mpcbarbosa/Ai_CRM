@@ -51,6 +51,9 @@ export default function Dashboard() {
   const [signals, setSignals] = useState<any[]>([]);
   const [sectors, setSectors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erpProspects, setErpProspects] = useState<any[]>([]);
+  const [employment, setEmployment] = useState<any[]>([]);
+  const [migratingId, setMigratingId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -63,11 +66,13 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [lr, sr, secr] = await Promise.all([fetch(API + '/api/leads?limit=200'), fetch(API + '/api/signals?limit=200'), fetch(API + '/api/sectors?limit=100')]);
-      const [ld, sd, secd] = await Promise.all([lr.json(), sr.json(), secr.json()]);
+      const [lr, sr, secr, erpr, empr] = await Promise.all([fetch(API + '/api/leads?limit=200'), fetch(API + '/api/signals?limit=200'), fetch(API + '/api/sectors?limit=100'), fetch(API + '/api/leads/erp-prospects'), fetch(API + '/api/signals/employment')]);
+      const [ld, sd, secd, erpd, empd] = await Promise.all([lr.json(), sr.json(), secr.json(), erpr.json(), empr.json()]);
       setLeads(ld.leads || ld || []);
       setSignals(sd.signals || sd || []);
       setSectors(secd.sectors || secd || []);
+      setErpProspects(Array.isArray(erpd) ? erpd : []);
+      setEmployment(Array.isArray(empd) ? empd : []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -108,8 +113,15 @@ export default function Dashboard() {
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
-  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
+  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Lorena / ERP', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
+
+  async function migrateToPipeline(signalId: string) {
+    setMigratingId(signalId);
+    await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', { method: 'POST' });
+    setMigratingId(null);
+    load();
+  }
 
   async function handleDrop(leadId: string, newStatus: string) {
     const lead = leads.find(l => l.id === leadId);
@@ -320,6 +332,75 @@ export default function Dashboard() {
                 </tr>);})}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && tab === 'lorena' && (
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ background: '#1e293b', borderRadius: '8px', padding: '14px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Leads identificados pela Lorena Lee — empresas PT com receita &gt;5M€ a avaliar substituição de ERP. Clica <b style={{color:'#f8fafc'}}>Migrar</b> para mover para o Pipeline.</span>
+            </div>
+            {erpProspects.length === 0 ? <EmptyState msg="Sem prospects da Lorena Lee. Configura o webhook para começar a receber dados." /> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead><tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Pais</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>ERP Atual</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Resumo</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Score</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
+              </tr></thead>
+              <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; return (
+                <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || 'PT'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#fb923c', fontSize: '12px' }}>{r.erp_atual || r.erp || r.sistema_erp || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '240px', fontSize: '12px' }}>{s.summary || r.resumo || r.notas || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}><ScoreBar score={s.score_final || 0} /></td>
+                  <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {s.lead
+                      ? <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700 }}>✓ No Pipeline</span>
+                      : <button onClick={() => migrateToPipeline(s.id)} disabled={migratingId === s.id}
+                          style={{ background: migratingId === s.id ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+                          {migratingId === s.id ? '...' : 'Migrar →'}
+                        </button>}
+                  </td>
+                </tr>);})}
+              </tbody>
+            </table>)}
+          </div>
+        )}
+
+        {!loading && tab === 'employment' && (
+          <div style={{ marginTop: '20px' }}>
+            <div style={{ background: '#1e293b', borderRadius: '8px', padding: '14px 20px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Sinais de recrutamento detetados — estas empresas estão a recrutar, o que pode indicar crescimento mas <b style={{color:'#f8fafc'}}>não são leads de ERP diretos</b>.</span>
+            </div>
+            {employment.length === 0 ? <EmptyState msg="Nenhum sinal de emprego/recrutamento detetado." /> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead><tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Pais</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Sinal</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
+              </tr></thead>
+              <tbody>{employment.map((s: any) => { const r = s.rawData || {}; return (
+                <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '300px', fontSize: '12px' }}>{s.summary || r.resumo || r.titulo || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }}>Ver fonte</a> : '-'}</td>
+                  <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
+                </tr>);})}
+              </tbody>
+            </table>)}
           </div>
         )}
 

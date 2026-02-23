@@ -11,6 +11,9 @@ const AGENT_TRIGGER_MAP: Record<string, string> = {
   'SAP_S4HANA_CLevelScanner_Daily': 'CLEVEL_CHANGE',
   'SAP_S4HANA_LeadScanner_Daily': 'LEAD_SCAN',
   'SAP_S4HANA_LeadScoring_Excel': 'EXCEL_SCORE',
+  'Lorena_Lee': 'ERP_PROSPECT',
+  'LorenaLee': 'ERP_PROSPECT',
+  'Lorena Lee': 'ERP_PROSPECT',
 };
 
 function normalizeDomain(domain?: string, name?: string): string {
@@ -113,7 +116,26 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-    return extractArray(body).map(item => ({
+  
+  if (agentName === 'Lorena_Lee' || agentName === 'LorenaLee' || agentName === 'Lorena Lee') {
+    return extractArray(body).map((r: Record<string, unknown>) => ({
+      companyName: String(r.empresa || r.company || r.nome || r.name || ''),
+      domain: normalizeDomain(String(r.dominio || r.domain || r.website || ''), String(r.empresa || r.company || '')),
+      website: String(r.website || r.dominio || ''),
+      country: String(r.pais || r.country || 'PT'),
+      sector: String(r.setor || r.sector || r.industria || ''),
+      size: String(r.dimensao || r.size || ''),
+      summary: String(r.resumo || r.summary || r.descricao || r.notas || ''),
+      sourceUrl: String(r.fonte || r.sourceUrl || r.url || ''),
+      triggerType: 'ERP_PROSPECT',
+      score_trigger: Number(r.score || r.score_trigger || 0),
+      score_probability: Number(r.probabilidade || r.probability || r.score_probability || 0),
+      score_final: Number(r.score_final || r.score || 0),
+      raw: r,
+    })).filter((s: any) => s.companyName && s.companyName !== 'Unknown');
+  }
+
+  return extractArray(body).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
       country: item.pais as string,
@@ -200,6 +222,25 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
         urgency: String(item.probabilidade_ERP || '').toLowerCase() === 'alto' ? 'HIGH' : undefined,
         raw: item,
       }));
+  }
+
+
+  if (agentName === 'Lorena_Lee' || agentName === 'LorenaLee' || agentName === 'Lorena Lee') {
+    return extractArray(body).map((r: Record<string, unknown>) => ({
+      companyName: String(r.empresa || r.company || r.nome || r.name || ''),
+      domain: normalizeDomain(String(r.dominio || r.domain || r.website || ''), String(r.empresa || r.company || '')),
+      website: String(r.website || r.dominio || ''),
+      country: String(r.pais || r.country || 'PT'),
+      sector: String(r.setor || r.sector || r.industria || ''),
+      size: String(r.dimensao || r.size || ''),
+      summary: String(r.resumo || r.summary || r.descricao || r.notas || ''),
+      sourceUrl: String(r.fonte || r.sourceUrl || r.url || ''),
+      triggerType: 'ERP_PROSPECT',
+      score_trigger: Number(r.score || r.score_trigger || 0),
+      score_probability: Number(r.probabilidade || r.probability || r.score_probability || 0),
+      score_final: Number(r.score_final || r.score || 0),
+      raw: r,
+    })).filter((s: any) => s.companyName && s.companyName !== 'Unknown');
   }
 
   return extractArray(body).map(item => ({
