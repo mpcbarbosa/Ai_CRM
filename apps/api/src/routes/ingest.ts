@@ -268,11 +268,17 @@ export async function ingestRoutes(app: FastifyInstance) {
   app.post('/api/ingest/gobii', async (req, reply) => {
     const gobiiToken = process.env.GOBII_WEBHOOK_TOKEN;
     if (gobiiToken) {
+      const query = req.query as Record<string, string>;
+      const body = req.body as Record<string, unknown>;
       const provided = (req.headers['x-gobii-token'] as string)
         || (req.headers['x-webhook-token'] as string)
-        || (req.headers['authorization'] as string)?.replace('Bearer ', '');
+        || (req.headers['authorization'] as string)?.replace('Bearer ', '')
+        || query.secret
+        || query.token
+        || String(body?.webhookSecret || body?.secret || '');
       if (provided !== gobiiToken) {
         logger.warn({ provided }, 'Unauthorized webhook attempt');
+        return reply.status(401).send({ error: 'Unauthorized' });
       }
     }
 
