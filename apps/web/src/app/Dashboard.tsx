@@ -347,7 +347,8 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Pais</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>ERP Atual</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Resumo</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Revenue</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Resumo / Fit</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Score</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
@@ -357,9 +358,18 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || 'PT'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#fb923c', fontSize: '12px' }}>{r.erp_atual || r.erp || r.sistema_erp || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '240px', fontSize: '12px' }}>{s.summary || r.resumo || r.notas || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}><ScoreBar score={s.score_final || 0} /></td>
+                  <td style={{ padding: '12px 16px', fontSize: '12px' }}>
+                    <span style={{ color: '#fb923c' }}>{r.erp_atual || r.current_erp_vendor || '-'}</span>
+                    {r.erp_confidence && <span style={{ marginLeft: '6px', color: '#475569', fontSize: '10px' }}>({r.erp_confidence})</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: '12px' }}>
+                    {r.revenue_eur ? <span style={{ color: '#4ade80', fontWeight: 700 }}>€{Number(r.revenue_eur).toLocaleString('pt-PT')}</span> : <span style={{ color: '#475569' }}>{r.revenue_range_eur || r.revenue_status || '-'}</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', maxWidth: '240px', fontSize: '12px' }}>
+                    <div style={{ color: '#94a3b8' }}>{s.summary || r.resumo || r.why_now || '-'}</div>
+                    {r.fit_for_s4hana && <span style={{ fontSize: '10px', color: r.fit_for_s4hana === 'high' ? '#4ade80' : r.fit_for_s4hana === 'medium' ? '#f59e0b' : '#475569', fontWeight: 700 }}>S/4HANA fit: {r.fit_for_s4hana}</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}><ScoreBar score={s.score_final || r.lead_score || 0} /></td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px' }}>
                     {s.lead
