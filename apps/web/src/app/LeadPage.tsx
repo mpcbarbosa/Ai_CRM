@@ -20,41 +20,6 @@ function Field({ label, value }: { label: string; value: any }) {
     <div style={{ marginBottom: '12px' }}>
       <div style={{ color: '#475569', fontSize: '10px', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>
       <div style={{ color: '#f8fafc', fontSize: '13px' }}>{value}</div>
-    {showEmailModal && (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '32px', width: '480px', maxWidth: '90vw' }}>
-          <h3 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '18px' }}>✉ Enviar Lead por Email</h3>
-          <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 24px 0' }}>Lead: <strong style={{ color: 'white' }}>{lead.company?.name}</strong></p>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Destinatários automáticos</div>
-            {defaultRecipients.length === 0
-              ? <div style={{ color: '#475569', fontSize: '12px', fontStyle: 'italic' }}>Nenhum configurado — adiciona em ⚙️ Configurações</div>
-              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {defaultRecipients.map((r: string) => (
-                    <span key={r} style={{ background: '#1e3a5f', color: '#60a5fa', padding: '3px 10px', borderRadius: '12px', fontSize: '12px' }}>{r}</span>
-                  ))}
-                </div>
-            }
-          </div>
-          <div style={{ marginBottom: '24px' }}>
-            <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Destinatários adicionais (separados por vírgula)</div>
-            <input type="text" value={extraRecipients} onChange={e => setExtraRecipients(e.target.value)}
-              placeholder="email1@exemplo.com, email2@exemplo.com"
-              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
-          </div>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowEmailModal(false); setExtraRecipients(''); }}
-              style={{ background: 'transparent', color: '#64748b', border: '1px solid #334155', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
-              Cancelar
-            </button>
-            <button onClick={sendEmail}
-              style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
-              ✉ Abrir no Email
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     </div>
   );
 }
@@ -494,6 +459,42 @@ export default function LeadPage({ leadId }: { leadId: string }) {
           </div>
         )}
       </div>
+
+    {showEmailModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '32px', width: '480px', maxWidth: '90vw' }}>
+          <h3 style={{ color: 'white', margin: '0 0 8px 0', fontSize: '18px' }}>✉ Enviar Lead por Email</h3>
+          <p style={{ color: '#94a3b8', fontSize: '13px', margin: '0 0 24px 0' }}>Lead: <strong style={{ color: 'white' }}>{lead.company?.name}</strong></p>
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Destinatários automáticos</div>
+            {defaultRecipients.length === 0
+              ? <div style={{ color: '#475569', fontSize: '12px', fontStyle: 'italic' }}>Nenhum configurado — adiciona em ⚙️ Configurações</div>
+              : <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {defaultRecipients.map((rec: string) => (
+                    <span key={rec} style={{ background: '#1e3a5f', color: '#60a5fa', padding: '3px 10px', borderRadius: '12px', fontSize: '12px' }}>{rec}</span>
+                  ))}
+                </div>
+            }
+          </div>
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Destinatários adicionais (separados por vírgula)</div>
+            <input type="text" value={extraRecipients} onChange={e => setExtraRecipients(e.target.value)}
+              placeholder="email1@exemplo.com, email2@exemplo.com"
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: 'white', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button onClick={() => { setShowEmailModal(false); setExtraRecipients(''); }}
+              style={{ background: 'transparent', color: '#64748b', border: '1px solid #334155', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
+              Cancelar
+            </button>
+            <button onClick={sendEmail}
+              style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+              ✉ Abrir no Email
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
