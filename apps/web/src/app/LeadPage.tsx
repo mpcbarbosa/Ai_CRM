@@ -69,6 +69,52 @@ export default function LeadPage({ leadId }: { leadId: string }) {
 
   useEffect(() => { loadLead(); }, [loadLead]);
 
+  useEffect(() => {
+    fetch(API + '/api/settings')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.emailRecipients) {
+          setDefaultRecipients(
+            data.emailRecipients.split(',').map((e: string) => e.trim()).filter(Boolean)
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function buildEmailContent() {
+    if (!lead) return { subject: '', body: '' };
+    const c = lead.company;
+    const subject = `[Gobii CRM] Lead: ${c?.name || 'N/A'} — ${lead.status}`;
+    const signals = (c?.signals || []).slice(0, 5).map((s: any) =>
+      `• [${s.type}] ${s.title || s.type} (score: ${s.score || 0})`
+    ).join('\n');
+    const body = [
+      `Lead: ${c?.name || 'N/A'}`,
+      `Status: ${lead.status}`,
+      `Score Total: ${lead.totalScore || 0}`,
+      `Sector: ${c?.sector || 'N/D'} | País: ${c?.country || 'N/D'} | Tamanho: ${c?.size || 'N/D'}`,
+      `Website: ${c?.website || c?.domain || 'N/D'}`,
+      '',
+      `Sinais recentes (${c?.signals?.length || 0} total):`,
+      signals || '(sem sinais)',
+      '',
+      `Ver detalhe: https://ai-crm-web-4blo.onrender.com/leads/${leadId}`,
+    ].join('\n');
+    return { subject, body };
+  }
+
+  function sendEmail() {
+    const { subject, body } = buildEmailContent();
+    const extra = extraRecipients.split(',').map((e: string) => e.trim()).filter(Boolean);
+    const allRecipients = [...defaultRecipients, ...extra];
+    const to = allRecipients.join(',');
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoUrl, '_blank');
+    setShowEmailModal(false);
+    setExtraRecipients('');
+  }
+
   async function changeStatus(status: string) {
     await fetch(API + '/api/leads/' + leadId + '/status', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
