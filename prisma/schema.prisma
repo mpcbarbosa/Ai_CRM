@@ -132,8 +132,8 @@ model Lead {
   activities          Activity[]
   auditLogs           AuditLog[]
   scoreHistory        ScoreHistory[]
-  notes               Note[]
-  tasks               Task[]
+  leadNotes            Note[]   @relation("LeadNotes")
+  leadTasks            Task[]   @relation("LeadTasks")
 }
 
 enum OpportunityStage {
@@ -195,7 +195,7 @@ model ScoreHistory {
   triggerType String?
   agentName   String?
   createdAt DateTime @default(now())
-  lead      Lead     @relation(fields: [leadId], references: [id])
+  lead      Lead     @relation("LeadTasks", fields: [leadId], references: [id])
 }
 
 model Setting {
@@ -214,7 +214,7 @@ model Note {
   createdBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  lead      Lead     @relation(fields: [leadId], references: [id])
+  lead      Lead     @relation("LeadNotes", fields: [leadId], references: [id])
 }
 
 model Task {
