@@ -132,8 +132,8 @@ model Lead {
   activities          Activity[]
   auditLogs           AuditLog[]
   scoreHistory        ScoreHistory[]
-  leadNotes            Note[]   @relation("LeadNotes")
-  leadTasks            Task[]   @relation("LeadTasks")
+  leadNotes           Note[]     @relation("LeadNotes")
+  leadTasks           Task[]     @relation("LeadTasks")
 }
 
 enum OpportunityStage {
@@ -189,13 +189,13 @@ model AuditLog {
 }
 
 model ScoreHistory {
-  id        String   @id @default(cuid())
-  leadId    String
-  score     Float
+  id          String   @id @default(cuid())
+  leadId      String
+  score       Float
   triggerType String?
   agentName   String?
-  createdAt DateTime @default(now())
-  lead      Lead     @relation("LeadTasks", fields: [leadId], references: [id])
+  createdAt   DateTime @default(now())
+  lead        Lead     @relation(fields: [leadId], references: [id])
 }
 
 model Setting {
@@ -204,8 +204,6 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
-// Note: Run migration to add these fields to Company
-// revenue, employeeCount, linkedinUrl, technologies, enrichedAt
 model Note {
   id        String   @id @default(cuid())
   leadId    String
@@ -218,16 +216,16 @@ model Note {
 }
 
 model Task {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   leadId      String
   title       String
   description String?
   dueAt       DateTime?
-  done        Boolean    @default(false)
+  done        Boolean   @default(false)
   doneAt      DateTime?
   assignedTo  String?
   createdBy   String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  lead        Lead       @relation(fields: [leadId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lead        Lead      @relation("LeadTasks", fields: [leadId], references: [id])
 }

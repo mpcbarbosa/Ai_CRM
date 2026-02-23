@@ -37,7 +37,7 @@ export async function leadsRoutes(app: FastifyInstance) {
         },
         opportunities: {
           orderBy: { createdAt: 'desc' },
-          include: { contact: true },
+          include: { contact: true } as any,
         },
         activities: { orderBy: { createdAt: 'desc' } },
       },
