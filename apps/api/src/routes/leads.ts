@@ -2,7 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { LeadStatus, ActivityType } from '@prisma/client';
-import * as nodemailer from 'nodemailer';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const nodemailer = require('nodemailer');
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
