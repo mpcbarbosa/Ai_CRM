@@ -269,7 +269,14 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   if (!lead || !lead.company) return <div style={{ color: '#ef4444', padding: '60px', textAlign: 'center' }}>Lead nao encontrado.</div>;
 
   const c = lead.company;
-  const rawFields = (signal: any) => Object.entries(signal.rawData || {}).filter(([k]: [string, unknown]) => !['raw', 'dedupeKey', 'processed_at'].includes(k));
+  const SKIP_RAW_KEYS = new Set(['raw', 'dedupeKey', 'processed_at', 'buying_signals', 'erp_evidence', 'sources']);
+  const formatRawValue = (v: unknown): string => {
+    if (v === null || v === undefined) return '-';
+    if (typeof v === 'object') return JSON.stringify(v, null, 0).substring(0, 120);
+    return String(v);
+  };
+  const rawFields = (signal: any) => Object.entries(signal.rawData || {})
+    .filter(([k, v]) => !SKIP_RAW_KEYS.has(k) && v !== null && v !== undefined && v !== '' && v !== 0 && !Array.isArray(v));
   const openTasks = (lead.tasks || []).filter((t: any) => !t.done).length;
 
   const tabs = [
@@ -483,7 +490,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   {rawFields(s).map(([k, v]: [string, unknown]) => (
                     <div key={k} style={{ background: '#0f172a', borderRadius: '6px', padding: '8px' }}>
                       <div style={{ color: '#475569', fontSize: '10px', textTransform: 'uppercase' }}>{k}</div>
-                      <div style={{ color: '#f8fafc', fontSize: '12px' }}>{String(v)}</div>
+                      <div style={{ color: '#f8fafc', fontSize: '12px', wordBreak: 'break-word' }}>{formatRawValue(v)}</div>
                     </div>
                   ))}
                 </div>

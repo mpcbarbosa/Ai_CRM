@@ -74,23 +74,37 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
     const b = body as Record<string, unknown>;
     const leadsArray = Array.isArray(b.leads) ? b.leads as Record<string, unknown>[] : null;
 
+    // Smart reclassification based on trigger content
+    function classifyTrigger(item: Record<string, unknown>): string {
+      const trigger = String(item.trigger || item.triggerType || item.signal_type || '').toLowerCase();
+      const summary = String(item.summary || item.description || '').toLowerCase();
+      const CLEVEL_KEYWORDS = ['cfo', 'cio', 'ceo', 'coo', 'cto', 'chief', 'diretor', 'director', 'c-level', 'clevel', 'board', 'presidente', 'vp ', 'vice president', 'managing director'];
+      const RFP_KEYWORDS = ['rfp', 'concurso', 'tender', 'licitação', 'adjudicação', 'procurement'];
+      const EXPANSION_KEYWORDS = ['expansão', 'expansion', 'nova fábrica', 'new factory', 'aquisição', 'acquisition', 'm&a', 'merger', 'fusão'];
+      if (CLEVEL_KEYWORDS.some(k => trigger.includes(k) || summary.includes(k))) return 'C_LEVEL_CHANGE';
+      if (RFP_KEYWORDS.some(k => trigger.includes(k) || summary.includes(k))) return 'RFP_SIGNAL';
+      if (EXPANSION_KEYWORDS.some(k => trigger.includes(k) || summary.includes(k))) return 'EXPANSION_SIGNAL';
+      return 'LEAD_SCAN';
+    }
+
     if (leadsArray) {
       return leadsArray.map(item => {
         const c = (item.company || {}) as Record<string, unknown>;
         const raw = (item.raw || {}) as Record<string, unknown>;
+        const detectedType = classifyTrigger(item);
         return {
           companyName: String(c.name || ''),
           domain: normalizeDomain(c.domain as string, c.name as string),
           website: c.website as string,
           country: c.country as string,
           sector: raw.setor as string,
-          triggerType,
+          triggerType: detectedType,
           summary: item.summary as string,
           sourceUrl: raw.fonte as string,
           score_trigger: Number(item.score_trigger || 0),
           score_probability: Number(item.score_probability || 0),
           score_final: Number(item.score_final || 0),
-          raw: item,
+          raw: { ...item as object, detectedTriggerType: detectedType },
         };
       });
     }
@@ -98,19 +112,20 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
     if (b.company) {
       const c = b.company as Record<string, unknown>;
       const raw = (b.raw as Record<string, unknown>) || {};
+      const detectedType = classifyTrigger(b);
       return [{
         companyName: String(c.name || ''),
         domain: normalizeDomain(c.domain as string, c.name as string),
         website: c.website as string,
         country: c.country as string,
         sector: raw.setor as string,
-        triggerType,
+        triggerType: detectedType,
         summary: b.summary as string,
         sourceUrl: raw.fonte as string,
         score_trigger: Number(b.score_trigger || 0),
         score_probability: Number(b.score_probability || 0),
         score_final: Number(b.score_final || 0),
-        raw: b,
+        raw: { ...b as object, detectedTriggerType: detectedType },
       }];
     }
   }
