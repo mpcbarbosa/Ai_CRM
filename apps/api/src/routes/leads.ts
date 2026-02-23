@@ -721,6 +721,38 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, lead });
   });
 
+
+  // PATCH /api/signals/:id/reclassify — change triggerType (e.g. employment → LEAD_SCAN for pipeline)
+  app.patch('/api/signals/:id/reclassify', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { triggerType } = req.body as { triggerType: string };
+    const signal = await prisma.leadSignal.update({
+      where: { id },
+      data: { triggerType },
+    });
+    // Ensure a lead exists for this company
+    let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+    if (!lead) {
+      lead = await prisma.lead.create({
+        data: {
+          companyId: signal.companyId,
+          status: 'NEW',
+          totalScore: signal.score_final || 0,
+          lastActivityDate: new Date(),
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          leadId: lead.id,
+          userName: 'Manual → Pipeline',
+          action: 'LEAD_CREATED',
+          details: { source: 'EMPLOYMENT_RECLASSIFY', signalId: id },
+        },
+      });
+    }
+    return reply.send({ ok: true, signal, lead });
+  });
+
   // ─── NOTES ────────────────────────────────────────────────────────────────
 
   // GET /api/leads/:id/notes

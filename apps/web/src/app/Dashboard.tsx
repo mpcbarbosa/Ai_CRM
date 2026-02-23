@@ -116,6 +116,18 @@ export default function Dashboard() {
   const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Lorena / ERP', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
+  async function migrateEmploymentToPipeline(signal: any) {
+    setMigratingId(signal.id);
+    // Change triggerType to LEAD_SCAN so it shows in pipeline
+    await fetch(API + '/api/signals/' + signal.id + '/reclassify', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ triggerType: 'LEAD_SCAN' }),
+    });
+    setMigratingId(null);
+    load();
+  }
+
   async function migrateToPipeline(signalId: string) {
     setMigratingId(signalId);
     await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', { method: 'POST' });
@@ -399,8 +411,9 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Sinal</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
-              <tbody>{employment.map((s: any) => { const r = s.rawData || {}; return (
+              <tbody>{employment.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td>
@@ -408,6 +421,14 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '300px', fontSize: '12px' }}>{s.summary || r.resumo || r.titulo || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }}>Ver fonte</a> : '-'}</td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {lead
+                      ? <span onClick={() => router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
+                      : <button onClick={() => migrateEmploymentToPipeline(s)} disabled={migratingId === s.id}
+                          style={{ background: migratingId === s.id ? '#334155' : '#0f4c81', color: 'white', border: '1px solid #1d4ed8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {migratingId === s.id ? '...' : '+ Pipeline'}
+                        </button>}
+                  </td>
                 </tr>);})}
               </tbody>
             </table>)}
