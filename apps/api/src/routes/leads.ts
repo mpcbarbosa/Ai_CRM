@@ -545,7 +545,7 @@ export async function leadsRoutes(app: FastifyInstance) {
       const orgRes = await fetch('https://api.apollo.io/api/v1/organizations/enrich?domain=' + domain, {
         headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
       });
-      const orgData = await orgRes.json();
+      const orgData = await orgRes.json() as any;
       const org = orgData.organization;
 
       if (org) {
@@ -577,7 +577,7 @@ export async function leadsRoutes(app: FastifyInstance) {
           per_page: 10,
         }),
       });
-      const peopleData = await peopleRes.json();
+      const peopleData = await peopleRes.json() as any;
       const people = peopleData.people || [];
 
       let newContacts = 0;
