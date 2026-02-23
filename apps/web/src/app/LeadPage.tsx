@@ -33,7 +33,9 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   const [companyForm, setCompanyForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [newActivity, setNewActivity] = useState({ type: 'CALL', title: '', notes: '' });
-  const [newOpp, setNewOpp] = useState({ stage: 'DISCOVERY', estimatedValue: '', owner: '' });
+  const [newOpp, setNewOpp] = useState({ stage: 'DISCOVERY', estimatedValue: '', owner: '', contactId: '' });
+  const [newNote, setNewNote] = useState('');
+  const [newTask, setNewTask] = useState({ title: '', description: '', dueAt: '', assignedTo: '' });
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [scoreHistory, setScoreHistory] = useState<any[]>([]);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -180,10 +182,62 @@ export default function LeadPage({ leadId }: { leadId: string }) {
     setSaving(true);
     await fetch(API + '/api/leads/' + leadId + '/opportunities', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOpp),
+      body: JSON.stringify({ ...newOpp, contactId: newOpp.contactId || null }),
     });
-    setNewOpp({ stage: 'DISCOVERY', estimatedValue: '', owner: '' });
+    setNewOpp({ stage: 'DISCOVERY', estimatedValue: '', owner: '', contactId: '' });
     setSaving(false);
+    loadLead();
+  }
+
+  async function updateOppContact(oppId: string, contactId: string) {
+    await fetch(API + '/api/opportunities/' + oppId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactId: contactId || null }),
+    });
+    loadLead();
+  }
+
+  async function saveNote() {
+    if (!newNote.trim()) return;
+    setSaving(true);
+    await fetch(API + '/api/leads/' + leadId + '/notes', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: newNote, createdBy: 'Utilizador' }),
+    });
+    setNewNote('');
+    setSaving(false);
+    loadLead();
+  }
+
+  async function deleteNote(noteId: string) {
+    if (!confirm('Apagar nota?')) return;
+    await fetch(API + '/api/notes/' + noteId, { method: 'DELETE' });
+    loadLead();
+  }
+
+  async function saveTask() {
+    if (!newTask.title.trim()) return;
+    setSaving(true);
+    await fetch(API + '/api/leads/' + leadId + '/tasks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTask),
+    });
+    setNewTask({ title: '', description: '', dueAt: '', assignedTo: '' });
+    setSaving(false);
+    loadLead();
+  }
+
+  async function toggleTask(taskId: string, done: boolean) {
+    await fetch(API + '/api/tasks/' + taskId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ done }),
+    });
+    loadLead();
+  }
+
+  async function deleteTask(taskId: string) {
+    if (!confirm('Apagar tarefa?')) return;
+    await fetch(API + '/api/tasks/' + taskId, { method: 'DELETE' });
     loadLead();
   }
 
@@ -195,12 +249,15 @@ export default function LeadPage({ leadId }: { leadId: string }) {
 
   const c = lead.company;
   const rawFields = (signal: any) => Object.entries(signal.rawData || {}).filter(([k]: [string, unknown]) => !['raw', 'dedupeKey', 'processed_at'].includes(k));
+  const openTasks = (lead.tasks || []).filter((t: any) => !t.done).length;
 
   const tabs = [
     { id: 'company', label: 'Empresa' },
     { id: 'signals', label: 'Sinais (' + (c.signals?.length || 0) + ')' },
     { id: 'activities', label: 'Atividades (' + (lead.activities?.length || 0) + ')' },
     { id: 'opportunities', label: 'Oportunidades (' + (lead.opportunities?.length || 0) + ')' },
+    { id: 'notes', label: 'Notas' + ((lead.notes?.length || 0) > 0 ? ' (' + lead.notes.length + ')' : '') },
+    { id: 'tasks', label: 'Tarefas' + (openTasks > 0 ? ' 🔴' + openTasks : '') },
     { id: 'history', label: 'Historico (' + auditLogs.length + ')' },
   ];
 
@@ -427,8 +484,17 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   </button>
                 ))}
               </div>
-              <input placeholder="Valor estimado (EUR)" value={newOpp.estimatedValue} onChange={e => setNewOpp(o => ({ ...o, estimatedValue: e.target.value }))} style={{ ...inputStyle, marginBottom: '8px' }} />
-              <input placeholder="Responsavel" value={newOpp.owner} onChange={e => setNewOpp(o => ({ ...o, owner: e.target.value }))} style={{ ...inputStyle, marginBottom: '12px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <input placeholder="Valor estimado (EUR)" value={newOpp.estimatedValue} onChange={e => setNewOpp(o => ({ ...o, estimatedValue: e.target.value }))} style={inputStyle} />
+                <input placeholder="Responsavel" value={newOpp.owner} onChange={e => setNewOpp(o => ({ ...o, owner: e.target.value }))} style={inputStyle} />
+              </div>
+              <select value={newOpp.contactId} onChange={e => setNewOpp(o => ({ ...o, contactId: e.target.value }))}
+                style={{ ...inputStyle, marginBottom: '12px', cursor: 'pointer' }}>
+                <option value="">Sem contacto associado</option>
+                {(c.contacts || []).map((ct: any) => (
+                  <option key={ct.id} value={ct.id}>{ct.name}{ct.role ? ' — ' + ct.role : ''}</option>
+                ))}
+              </select>
               <button onClick={saveOpp} disabled={saving}
                 style={{ background: saving ? '#475569' : '#7c3aed', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
                 {saving ? 'A guardar...' : 'Guardar Oportunidade'}
@@ -441,8 +507,30 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                 {lead.opportunities.map((o: any) => (
                   <div key={o.id} style={card}>
                     <span style={{ background: STAGE_COLORS[o.stage] || '#475569', color: 'white', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{o.stage}</span>
-                    {o.estimatedValue && <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '18px', marginTop: '10px' }}>{'€'}{Number(o.estimatedValue).toLocaleString('pt-PT')}</div>}
+                    {o.estimatedValue && <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '18px', marginTop: '10px' }}>€{Number(o.estimatedValue).toLocaleString('pt-PT')}</div>}
                     {o.owner && <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '4px' }}>{o.owner}</div>}
+                    {/* Contacto associado */}
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #334155' }}>
+                      <div style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>Contacto</div>
+                      {o.contact ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '13px' }}>{o.contact.name}</div>
+                            {o.contact.role && <div style={{ color: '#60a5fa', fontSize: '11px' }}>{o.contact.role}</div>}
+                          </div>
+                          <button onClick={() => updateOppContact(o.id, '')}
+                            style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '16px' }} title="Remover contacto">×</button>
+                        </div>
+                      ) : (
+                        <select onChange={e => updateOppContact(o.id, e.target.value)} defaultValue=""
+                          style={{ ...inputStyle, fontSize: '12px', cursor: 'pointer' }}>
+                          <option value="">Associar contacto...</option>
+                          {(c.contacts || []).map((ct: any) => (
+                            <option key={ct.id} value={ct.id}>{ct.name}{ct.role ? ' — ' + ct.role : ''}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                     <div style={{ color: '#64748b', fontSize: '11px', marginTop: '8px' }}>{new Date(o.createdAt).toLocaleDateString('pt-PT')}</div>
                   </div>
                 ))}
@@ -451,6 +539,126 @@ export default function LeadPage({ leadId }: { leadId: string }) {
           </div>
         )}
       
+        {activeTab === 'notes' && (
+          <div>
+            {/* Nova nota */}
+            <div style={{ ...card, marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '10px' }}>Nova Nota</div>
+              <div style={{ position: 'relative', marginBottom: '8px' }}>
+                <textarea
+                  placeholder="Escreve uma nota... usa @nome para mencionar alguém"
+                  value={newNote}
+                  onChange={e => setNewNote(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) saveNote(); }}
+                  style={{ ...inputStyle, height: '100px', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+                <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>Usa @menção para mencionar · Cmd+Enter para guardar</div>
+              </div>
+              <button onClick={saveNote} disabled={saving || !newNote.trim()}
+                style={{ background: saving || !newNote.trim() ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                {saving ? 'A guardar...' : 'Guardar Nota'}
+              </button>
+            </div>
+
+            {/* Lista de notas */}
+            {(!lead.notes || lead.notes.length === 0)
+              ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Sem notas ainda.</div>
+              : lead.notes.map((n: any) => {
+                // Highlight @mentions
+                const parts = n.content.split(/(@\w+)/g);
+                return (
+                  <div key={n.id} style={{ ...card, marginBottom: '12px', position: 'relative' }}>
+                    <div style={{ fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {parts.map((part: string, i: number) =>
+                        part.startsWith('@')
+                          ? <span key={i} style={{ color: '#f59e0b', fontWeight: 700 }}>{part}</span>
+                          : <span key={i}>{part}</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '10px', borderTop: '1px solid #334155' }}>
+                      <div style={{ fontSize: '11px', color: '#475569' }}>
+                        {n.createdBy && <span>{n.createdBy} · </span>}
+                        {new Date(n.createdAt).toLocaleDateString('pt-PT')} {new Date(n.createdAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                        {n.mentions?.length > 0 && <span style={{ marginLeft: '10px', color: '#f59e0b' }}>@{n.mentions.join(' @')}</span>}
+                      </div>
+                      <button onClick={() => deleteNote(n.id)}
+                        style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '13px', padding: '4px 8px', borderRadius: '4px' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
+                        Apagar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
+        {activeTab === 'tasks' && (
+          <div>
+            {/* Nova tarefa */}
+            <div style={{ ...card, marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Nova Tarefa</div>
+              <input placeholder="Titulo da tarefa *" value={newTask.title} onChange={e => setNewTask(t => ({ ...t, title: e.target.value }))}
+                style={{ ...inputStyle, marginBottom: '8px' }} />
+              <input placeholder="Descrição (opcional)" value={newTask.description} onChange={e => setNewTask(t => ({ ...t, description: e.target.value }))}
+                style={{ ...inputStyle, marginBottom: '8px' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#475569', marginBottom: '4px' }}>Prazo</div>
+                  <input type="datetime-local" value={newTask.dueAt} onChange={e => setNewTask(t => ({ ...t, dueAt: e.target.value }))}
+                    style={{ ...inputStyle, colorScheme: 'dark' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#475569', marginBottom: '4px' }}>Atribuir a</div>
+                  <input placeholder="Nome ou email" value={newTask.assignedTo} onChange={e => setNewTask(t => ({ ...t, assignedTo: e.target.value }))}
+                    style={inputStyle} />
+                </div>
+              </div>
+              <button onClick={saveTask} disabled={saving || !newTask.title.trim()}
+                style={{ background: saving || !newTask.title.trim() ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                {saving ? 'A guardar...' : 'Criar Tarefa'}
+              </button>
+            </div>
+
+            {/* Lista de tarefas */}
+            {(!lead.tasks || lead.tasks.length === 0)
+              ? <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Sem tarefas ainda.</div>
+              : lead.tasks.map((t: any) => {
+                const overdue = !t.done && t.dueAt && new Date(t.dueAt) < new Date();
+                return (
+                  <div key={t.id} style={{ ...card, marginBottom: '10px', display: 'flex', gap: '14px', alignItems: 'flex-start', opacity: t.done ? 0.55 : 1 }}>
+                    {/* Checkbox */}
+                    <div onClick={() => toggleTask(t.id, !t.done)}
+                      style={{ width: '20px', height: '20px', borderRadius: '5px', border: '2px solid', borderColor: t.done ? '#4ade80' : '#334155', background: t.done ? '#15803d' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2px' }}>
+                      {t.done && <span style={{ color: 'white', fontSize: '12px' }}>✓</span>}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '14px', textDecoration: t.done ? 'line-through' : 'none', color: t.done ? '#475569' : '#f8fafc' }}>{t.title}</div>
+                      {t.description && <div style={{ color: '#94a3b8', fontSize: '13px', marginTop: '2px' }}>{t.description}</div>}
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '11px', flexWrap: 'wrap' }}>
+                        {t.dueAt && (
+                          <span style={{ color: overdue ? '#ef4444' : '#94a3b8' }}>
+                            {overdue ? '⚠ Atrasada · ' : ''}
+                            Prazo: {new Date(t.dueAt).toLocaleDateString('pt-PT')} {new Date(t.dueAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        {t.assignedTo && <span style={{ color: '#7c3aed' }}>@ {t.assignedTo}</span>}
+                        {t.done && t.doneAt && <span style={{ color: '#4ade80' }}>✓ Concluída em {new Date(t.doneAt).toLocaleDateString('pt-PT')}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteTask(t.id)}
+                      style={{ background: 'none', border: 'none', color: '#334155', cursor: 'pointer', fontSize: '16px', padding: '2px' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                      onMouseLeave={e => (e.currentTarget.style.color = '#334155')}>
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+
         {activeTab === 'history' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px' }}>

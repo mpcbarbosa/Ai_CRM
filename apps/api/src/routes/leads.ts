@@ -35,12 +35,22 @@ export async function leadsRoutes(app: FastifyInstance) {
             signals: { orderBy: { createdAt: 'desc' } },
           },
         },
-        opportunities: { orderBy: { createdAt: 'desc' } },
+        opportunities: {
+          orderBy: { createdAt: 'desc' },
+          include: { contact: true },
+        },
         activities: { orderBy: { createdAt: 'desc' } },
       },
     });
     if (!lead) return reply.code(404).send({ error: 'Not found' });
-    return reply.send(lead);
+
+    // Attach notes and tasks separately (new models, use prisma as any)
+    const [notes, tasks] = await Promise.all([
+      (prisma as any).note.findMany({ where: { leadId: id }, orderBy: { createdAt: 'desc' } }),
+      (prisma as any).task.findMany({ where: { leadId: id }, orderBy: [{ done: 'asc' }, { dueAt: 'asc' }] }),
+    ]);
+
+    return reply.send({ ...lead, notes, tasks });
   });
 
 
@@ -634,6 +644,114 @@ export async function leadsRoutes(app: FastifyInstance) {
       return reply.status(500).send({ error: 'Erro no enriquecimento', detail: err?.message });
     }
   });
-}
 
-// This is appended - will be integrated properly
+  // ─── NOTES ────────────────────────────────────────────────────────────────
+
+  // GET /api/leads/:id/notes
+  app.get('/api/leads/:id/notes', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const notes = await (prisma as any).note.findMany({
+      where: { leadId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    return reply.send(notes);
+  });
+
+  // POST /api/leads/:id/notes
+  app.post('/api/leads/:id/notes', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { content, createdBy } = req.body as { content: string; createdBy?: string };
+    if (!content?.trim()) return reply.status(400).send({ error: 'Conteudo obrigatorio' });
+
+    // Extract @mentions
+    const mentions = [...content.matchAll(/@(\w+)/g)].map(m => m[1]);
+
+    const note = await (prisma as any).note.create({
+      data: { leadId: id, content, mentions, createdBy: createdBy || 'Utilizador' },
+    });
+
+    await prisma.auditLog.create({
+      data: { leadId: id, userName: createdBy || 'Utilizador', action: 'NOTE_ADDED', details: { preview: content.substring(0, 100) } },
+    });
+
+    return reply.status(201).send(note);
+  });
+
+  // DELETE /api/notes/:id
+  app.delete('/api/notes/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await (prisma as any).note.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
+
+  // ─── TASKS ────────────────────────────────────────────────────────────────
+
+  // GET /api/leads/:id/tasks
+  app.get('/api/leads/:id/tasks', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const tasks = await (prisma as any).task.findMany({
+      where: { leadId: id },
+      orderBy: [{ done: 'asc' }, { dueAt: 'asc' }, { createdAt: 'desc' }],
+    });
+    return reply.send(tasks);
+  });
+
+  // POST /api/leads/:id/tasks
+  app.post('/api/leads/:id/tasks', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { title, description, dueAt, assignedTo, createdBy } = req.body as any;
+    if (!title?.trim()) return reply.status(400).send({ error: 'Titulo obrigatorio' });
+
+    const task = await (prisma as any).task.create({
+      data: {
+        leadId: id,
+        title,
+        description: description || null,
+        dueAt: dueAt ? new Date(dueAt) : null,
+        assignedTo: assignedTo || null,
+        createdBy: createdBy || 'Utilizador',
+      },
+    });
+    return reply.status(201).send(task);
+  });
+
+  // PATCH /api/tasks/:id — toggle done or edit
+  app.patch('/api/tasks/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = req.body as any;
+    const data: any = {};
+    if (typeof body.done === 'boolean') {
+      data.done = body.done;
+      data.doneAt = body.done ? new Date() : null;
+    }
+    if (body.title) data.title = body.title;
+    if (body.dueAt !== undefined) data.dueAt = body.dueAt ? new Date(body.dueAt) : null;
+    if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+    const task = await (prisma as any).task.update({ where: { id }, data });
+    return reply.send(task);
+  });
+
+  // DELETE /api/tasks/:id
+  app.delete('/api/tasks/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    await (prisma as any).task.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
+
+  // ─── OPPORTUNITY + CONTACT ─────────────────────────────────────────────────
+
+  // PATCH /api/opportunities/:id — update contactId or other fields
+  app.patch('/api/opportunities/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { contactId, stage, estimatedValue, probability, owner, lostReason } = req.body as any;
+    const data: any = {};
+    if (contactId !== undefined) data.contactId = contactId || null;
+    if (stage) data.stage = stage;
+    if (estimatedValue !== undefined) data.estimatedValue = estimatedValue ? Number(estimatedValue) : null;
+    if (probability !== undefined) data.probability = probability ? Number(probability) : null;
+    if (owner !== undefined) data.owner = owner;
+    if (lostReason !== undefined) data.lostReason = lostReason;
+    const opp = await prisma.opportunity.update({ where: { id }, data });
+    return reply.send(opp);
+  });
+}
