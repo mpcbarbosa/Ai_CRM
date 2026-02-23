@@ -740,6 +740,35 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   // ─── OPPORTUNITY + CONTACT ─────────────────────────────────────────────────
 
+  // POST /api/companies/:id/contacts — add manual contact
+  app.post('/api/companies/:id/contacts', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { name, role, email, phone, linkedin, sourceAgent } = req.body as any;
+    if (!name?.trim()) return reply.status(400).send({ error: 'Nome obrigatorio' });
+
+    const contact = await prisma.contact.create({
+      data: { companyId: id, name, role: role || null, email: email || null, phone: phone || null, linkedin: linkedin || null, sourceAgent: sourceAgent || 'Manual' },
+    });
+
+    // Find lead for audit log
+    const lead = await prisma.lead.findUnique({ where: { companyId: id } });
+    if (lead) {
+      await prisma.auditLog.create({
+        data: { leadId: lead.id, userName: 'Utilizador', action: 'CONTACT_ADDED', details: { name, role, source: 'Manual' } },
+      });
+    }
+    return reply.status(201).send(contact);
+  });
+
+  // DELETE /api/contacts/:id — delete contact
+  app.delete('/api/contacts/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    // Remove contactId from any opportunities first
+    await prisma.opportunity.updateMany({ where: { contactId: id }, data: { contactId: null } });
+    await prisma.contact.delete({ where: { id } });
+    return reply.send({ ok: true });
+  });
+
   // PATCH /api/opportunities/:id — update contactId or other fields
   app.patch('/api/opportunities/:id', async (req, reply) => {
     const { id } = req.params as { id: string };

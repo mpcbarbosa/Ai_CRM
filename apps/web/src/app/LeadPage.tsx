@@ -36,6 +36,8 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   const [newOpp, setNewOpp] = useState({ stage: 'DISCOVERY', estimatedValue: '', owner: '', contactId: '' });
   const [newNote, setNewNote] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '', dueAt: '', assignedTo: '' });
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', role: '', email: '', phone: '', linkedin: '' });
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [scoreHistory, setScoreHistory] = useState<any[]>([]);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -241,6 +243,25 @@ export default function LeadPage({ leadId }: { leadId: string }) {
     loadLead();
   }
 
+  async function saveContact() {
+    if (!newContact.name.trim()) return;
+    setSaving(true);
+    await fetch(API + '/api/companies/' + c.id + '/contacts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...newContact, sourceAgent: 'Manual' }),
+    });
+    setNewContact({ name: '', role: '', email: '', phone: '', linkedin: '' });
+    setShowAddContact(false);
+    setSaving(false);
+    loadLead();
+  }
+
+  async function deleteContact(contactId: string) {
+    if (!confirm('Apagar contacto?')) return;
+    await fetch(API + '/api/contacts/' + contactId, { method: 'DELETE' });
+    loadLead();
+  }
+
   const card = { background: '#1e293b', borderRadius: '10px', padding: '20px' } as const;
   const inputStyle = { width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#f8fafc', padding: '8px 12px', fontSize: '13px', boxSizing: 'border-box' as const };
 
@@ -390,16 +411,51 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               )}
             </div>
             <div style={card}>
-              <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginBottom: '16px' }}>Contactos ({c.contacts?.length || 0})</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>Contactos ({c.contacts?.length || 0})</div>
+                <button onClick={() => setShowAddContact(v => !v)}
+                  style={{ background: showAddContact ? '#334155' : '#0f172a', color: '#7c3aed', border: '1px solid #7c3aed', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+                  {showAddContact ? '✕ Cancelar' : '+ Adicionar'}
+                </button>
+              </div>
+
+              {showAddContact && (
+                <div style={{ background: '#0f172a', borderRadius: '8px', padding: '14px', marginBottom: '14px', border: '1px solid #334155' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc', marginBottom: '10px' }}>Novo Contacto</div>
+                  <input placeholder="Nome *" value={newContact.name} onChange={e => setNewContact(c => ({ ...c, name: e.target.value }))}
+                    style={{ ...inputStyle, marginBottom: '6px' }} />
+                  <input placeholder="Cargo (ex: CEO, CFO...)" value={newContact.role} onChange={e => setNewContact(c => ({ ...c, role: e.target.value }))}
+                    style={{ ...inputStyle, marginBottom: '6px' }} />
+                  <input placeholder="Email" value={newContact.email} onChange={e => setNewContact(c => ({ ...c, email: e.target.value }))}
+                    style={{ ...inputStyle, marginBottom: '6px' }} />
+                  <input placeholder="Telefone" value={newContact.phone} onChange={e => setNewContact(c => ({ ...c, phone: e.target.value }))}
+                    style={{ ...inputStyle, marginBottom: '6px' }} />
+                  <input placeholder="LinkedIn URL" value={newContact.linkedin} onChange={e => setNewContact(c => ({ ...c, linkedin: e.target.value }))}
+                    style={{ ...inputStyle, marginBottom: '10px' }} />
+                  <button onClick={saveContact} disabled={saving || !newContact.name.trim()}
+                    style={{ background: saving || !newContact.name.trim() ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                    {saving ? 'A guardar...' : 'Guardar Contacto'}
+                  </button>
+                </div>
+              )}
+
               {(!c.contacts || c.contacts.length === 0) ? (
-                <div style={{ color: '#475569', textAlign: 'center', padding: '20px' }}>Sem contactos</div>
+                <div style={{ color: '#475569', textAlign: 'center', padding: '20px' }}>Sem contactos — adiciona manualmente ou usa o Apollo.</div>
               ) : c.contacts.map((ct: any) => (
-                <div key={ct.id} style={{ background: '#0f172a', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>{ct.name}</div>
+                <div key={ct.id} style={{ background: '#0f172a', borderRadius: '8px', padding: '12px', marginBottom: '10px', position: 'relative' }}>
+                  <button onClick={() => deleteContact(ct.id)}
+                    style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: '#334155', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#334155')}>×</button>
+                  <div style={{ fontWeight: 600, fontSize: '14px', paddingRight: '20px' }}>{ct.name}</div>
                   {ct.role && <div style={{ color: '#60a5fa', fontSize: '12px' }}>{ct.role}{ct.seniority ? ` · ${ct.seniority}` : ''}</div>}
                   {ct.email && <div><a href={'mailto:' + ct.email} style={{ color: '#7c3aed', fontSize: '12px' }}>{ct.email}</a></div>}
+                  {ct.phone && <div style={{ color: '#94a3b8', fontSize: '12px' }}>{ct.phone}</div>}
                   {ct.linkedin && <div><a href={ct.linkedin} target="_blank" style={{ color: '#64748b', fontSize: '11px' }}>LinkedIn →</a></div>}
-                  {ct.sourceAgent === 'Apollo' && <div style={{ color: '#f59e0b', fontSize: '10px', marginTop: '4px' }}>✦ Apollo</div>}
+                  <div style={{ marginTop: '6px' }}>
+                    {ct.sourceAgent === 'Apollo' && <span style={{ color: '#f59e0b', fontSize: '10px' }}>✦ Apollo</span>}
+                    {ct.sourceAgent === 'Manual' && <span style={{ color: '#475569', fontSize: '10px' }}>✎ Manual</span>}
+                  </div>
                 </div>
               ))}
             </div>
