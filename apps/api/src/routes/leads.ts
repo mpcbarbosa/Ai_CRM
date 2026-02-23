@@ -20,14 +20,23 @@ export async function leadsRoutes(app: FastifyInstance) {
     // Pipeline only shows LeadScanner leads (other agents have their own tabs)
     const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'CLEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT', 'ERP_PROSPECT'];
     const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'hr manager', 'people manager', 'talent acquisition', 'oferta de emprego', 'abertura de vaga', 'it recruiter', 'erp recruiter', 'sap recruiter', 'job opening'];
+    const seen = new Set<string>();
     const filtered = leads.filter((l: any) => {
       const sig = l.company?.signals?.[0];
-      if (!sig) return true;
+      if (!sig) {
+        // Deduplicate by company name
+        const name = l.company?.name?.toLowerCase().trim();
+        if (name) { if (seen.has(name)) return false; seen.add(name); }
+        return true;
+      }
       if (PIPELINE_TRIGGERS.includes(sig.triggerType)) return false;
       // Exclude employment signals
       const summary = (sig.summary || sig.rawData?.summary || '').toLowerCase();
       const title = (sig.rawData?.titulo || sig.rawData?.cargo || '').toLowerCase();
       if (EMPLOYMENT_KEYWORDS.some((k: string) => summary.includes(k) || title.includes(k))) return false;
+      // Deduplicate by company name
+      const name = l.company?.name?.toLowerCase().trim();
+      if (name) { if (seen.has(name)) return false; seen.add(name); }
       return true;
     });
     return reply.send(filtered);
@@ -729,10 +738,21 @@ export async function leadsRoutes(app: FastifyInstance) {
     const signal = await prisma.leadSignal.update({
       where: { id },
       data: { triggerType },
+      include: { company: true },
     });
-    // Ensure a lead exists for this company
+    // Check for existing lead by companyId OR by company name (prevent duplicates)
     let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
     if (!lead) {
+      // Also check by company name to avoid duplicates with different domains
+      const companyName = (signal as any).company?.name?.toLowerCase().trim();
+      if (companyName) {
+        const existing = await prisma.lead.findFirst({
+          where: { company: { name: { equals: companyName, mode: 'insensitive' } } },
+        });
+        if (existing) {
+          return reply.send({ ok: true, duplicate: true, lead: existing, signal });
+        }
+      }
       lead = await prisma.lead.create({
         data: {
           companyId: signal.companyId,
@@ -746,11 +766,36 @@ export async function leadsRoutes(app: FastifyInstance) {
           leadId: lead.id,
           userName: 'Manual → Pipeline',
           action: 'LEAD_CREATED',
-          details: { source: 'EMPLOYMENT_RECLASSIFY', signalId: id },
+          details: { source: 'RECLASSIFY', signalId: id },
         },
       });
     }
-    return reply.send({ ok: true, signal, lead });
+    return reply.send({ ok: true, lead, signal });
+  });
+
+
+  // POST /api/admin/dedup-leads — remove duplicate leads (same company name, keep highest score)
+  app.post('/api/admin/dedup-leads', async (req, reply) => {
+    const leads = await prisma.lead.findMany({
+      include: { company: true },
+      orderBy: { totalScore: 'desc' },
+    });
+    const seen = new Map<string, string>();
+    const toDelete: string[] = [];
+    for (const lead of leads) {
+      const name = lead.company?.name?.toLowerCase().trim();
+      if (!name) continue;
+      if (seen.has(name)) { toDelete.push(lead.id); }
+      else { seen.set(name, lead.id); }
+    }
+    for (const id of toDelete) {
+      await prisma.auditLog.deleteMany({ where: { leadId: id } });
+      await (prisma as any).note.deleteMany({ where: { leadId: id } });
+      await (prisma as any).task.deleteMany({ where: { leadId: id } });
+      await prisma.opportunity.deleteMany({ where: { leadId: id } });
+      await prisma.lead.delete({ where: { id } });
+    }
+    return reply.send({ ok: true, removed: toDelete.length, ids: toDelete });
   });
 
   // ─── NOTES ────────────────────────────────────────────────────────────────
