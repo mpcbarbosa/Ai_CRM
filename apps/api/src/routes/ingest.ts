@@ -117,63 +117,6 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
     return extractArray(body).map(item => ({
-      companyName: String(item.empresa || item.company || ''),
-      domain: normalizeDomain((item.domain || item.companyDomain) as string, (item.empresa || item.company) as string),
-      country: (item.pais || item.country) as string,
-      sector: (item.setor || item.sector) as string,
-      triggerType: 'C_LEVEL_CHANGE',
-      summary: (item.impacto_erp || item.summary || item.resumo) as string,
-      sourceUrl: (item.sourceUrl || item.fonte || item.url) as string,
-      score_trigger: Number(item.score_trigger || 0),
-      score_probability: Number(item.score_probabilidade || item.score_probability || 0),
-      score_final: Number(item.score_final || 0),
-      raw: item,
-    }));
-  }
-
-
-  if (agentName === 'Lorena_Lee' || agentName === 'LorenaLee' || agentName === 'Lorena Lee') {
-    // Lorena Lee uses a leads[] wrapper
-    const items = (body as any)?.leads || extractArray(body);
-    return items.map((r: Record<string, unknown>) => {
-      // Build summary from buying signals + why_now
-      const signals = Array.isArray(r.buying_signals) ? (r.buying_signals as any[]).map((s: any) => s.details || s.signal_type).filter(Boolean).join('; ') : '';
-      const summary = [r.why_now, signals, r.notes].filter(Boolean).join(' | ').substring(0, 500);
-      // Best source URL
-      const sources = Array.isArray(r.sources) ? r.sources as any[] : [];
-      const sourceUrl = sources[0]?.url || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.url : '') || '';
-      // ERP info for raw
-      const erpInfo = [r.current_erp_vendor, r.current_erp_product].filter(Boolean).join(' ');
-      return {
-        companyName: String(r.company_name || ''),
-        domain: normalizeDomain(String(r.domain || ''), String(r.company_name || '')),
-        website: String(r.domain || ''),
-        country: String(r.country || 'PT'),
-        sector: String(r.sector || ''),
-        size: String(r.employee_range || ''),
-        summary: summary || String(r.notes || ''),
-        sourceUrl: String(sourceUrl),
-        triggerType: 'ERP_PROSPECT',
-        score_trigger: Number(r.lead_score || 0),
-        score_probability: Number(r.lead_score || 0),
-        score_final: Number(r.lead_score || 0),
-        raw: {
-          ...r,
-          erp_atual: erpInfo || 'Desconhecido',
-          resumo: summary,
-          headquarters_city: r.headquarters_city,
-          fit_for_s4hana: r.fit_for_s4hana,
-          revenue_eur: r.revenue_eur,
-          revenue_range_eur: r.revenue_range_eur,
-          revenue_status: r.revenue_status,
-          recommended_next_action: r.recommended_next_action,
-          primary_contact_hint: r.primary_contact_hint,
-        },
-      };
-    }).filter((s: any) => s.companyName && s.companyName !== 'Unknown');
-  }
-
-  return extractArray(body).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
       country: item.pais as string,
@@ -262,18 +205,13 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       }));
   }
 
-
-  if (agentName === 'Lorena_Lee' || agentName === 'LorenaLee' || agentName === 'Lorena Lee') {
-    // Lorena Lee uses a leads[] wrapper
-    const items = (body as any)?.leads || extractArray(body);
-    return items.map((r: Record<string, unknown>) => {
-      // Build summary from buying signals + why_now
+  if (['Lorena_Lee', 'LorenaLee', 'Lorena Lee'].includes(agentName)) {
+    const items: Record<string, unknown>[] = (body as any)?.leads || extractArray(body);
+    return items.map((r) => {
       const signals = Array.isArray(r.buying_signals) ? (r.buying_signals as any[]).map((s: any) => s.details || s.signal_type).filter(Boolean).join('; ') : '';
       const summary = [r.why_now, signals, r.notes].filter(Boolean).join(' | ').substring(0, 500);
-      // Best source URL
       const sources = Array.isArray(r.sources) ? r.sources as any[] : [];
-      const sourceUrl = sources[0]?.url || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.url : '') || '';
-      // ERP info for raw
+      const sourceUrl = String(sources[0]?.url || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.url : '') || '');
       const erpInfo = [r.current_erp_vendor, r.current_erp_product].filter(Boolean).join(' ');
       return {
         companyName: String(r.company_name || ''),
@@ -283,8 +221,8 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
         sector: String(r.sector || ''),
         size: String(r.employee_range || ''),
         summary: summary || String(r.notes || ''),
-        sourceUrl: String(sourceUrl),
-        triggerType: 'ERP_PROSPECT',
+        sourceUrl,
+        triggerType: 'ERP_PROSPECT' as string,
         score_trigger: Number(r.lead_score || 0),
         score_probability: Number(r.lead_score || 0),
         score_final: Number(r.lead_score || 0),
@@ -301,8 +239,9 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
           primary_contact_hint: r.primary_contact_hint,
         },
       };
-    }).filter((s: any) => s.companyName && s.companyName !== 'Unknown');
+    }).filter((s) => s.companyName && s.companyName !== 'Unknown');
   }
+
 
   return extractArray(body).map(item => ({
     companyName: String(item.companyName || item.empresa || item.entidade || item.name || ''),
@@ -329,14 +268,14 @@ export async function ingestRoutes(app: FastifyInstance) {
   app.post('/api/ingest/gobii', async (req, reply) => {
     const gobiiToken = process.env.GOBII_WEBHOOK_TOKEN;
     if (gobiiToken) {
-      const query = req.query as Record<string, string>;
-      const body = req.body as Record<string, unknown>;
+      const qry = req.query as Record<string, string>;
+      const bd = req.body as Record<string, unknown>;
       const provided = (req.headers['x-gobii-token'] as string)
         || (req.headers['x-webhook-token'] as string)
         || (req.headers['authorization'] as string)?.replace('Bearer ', '')
-        || query.secret
-        || query.token
-        || String(body?.webhookSecret || body?.secret || '');
+        || qry.secret
+        || qry.token
+        || String(bd?.webhookSecret || bd?.secret || '');
       if (provided !== gobiiToken) {
         logger.warn({ provided }, 'Unauthorized webhook attempt');
         return reply.status(401).send({ error: 'Unauthorized' });
