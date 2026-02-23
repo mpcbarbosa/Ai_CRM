@@ -116,7 +116,22 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-  
+    return extractArray(body).map(item => ({
+      companyName: String(item.empresa || item.company || ''),
+      domain: normalizeDomain((item.domain || item.companyDomain) as string, (item.empresa || item.company) as string),
+      country: (item.pais || item.country) as string,
+      sector: (item.setor || item.sector) as string,
+      triggerType: 'C_LEVEL_CHANGE',
+      summary: (item.impacto_erp || item.summary || item.resumo) as string,
+      sourceUrl: (item.sourceUrl || item.fonte || item.url) as string,
+      score_trigger: Number(item.score_trigger || 0),
+      score_probability: Number(item.score_probabilidade || item.score_probability || 0),
+      score_final: Number(item.score_final || 0),
+      raw: item,
+    }));
+  }
+
+
   if (agentName === 'Lorena_Lee' || agentName === 'LorenaLee' || agentName === 'Lorena Lee') {
     // Lorena Lee uses a leads[] wrapper
     const items = (body as any)?.leads || extractArray(body);
