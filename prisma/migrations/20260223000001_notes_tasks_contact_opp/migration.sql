@@ -1,7 +1,15 @@
 -- Add contactId to Opportunity
 ALTER TABLE "Opportunity" ADD COLUMN IF NOT EXISTS "contactId" TEXT;
-ALTER TABLE "Opportunity" ADD CONSTRAINT IF NOT EXISTS "Opportunity_contactId_fkey" 
-  FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Opportunity_contactId_fkey'
+  ) THEN
+    ALTER TABLE "Opportunity" ADD CONSTRAINT "Opportunity_contactId_fkey"
+      FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- Create Note table
 CREATE TABLE IF NOT EXISTS "Note" (
