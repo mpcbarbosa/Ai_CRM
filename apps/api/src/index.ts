@@ -51,6 +51,7 @@ app.addHook('preValidation', async (req) => {
 
 app.register(ingestRoutes);
 app.register(leadsRoutes);
+app.register(settingsRoutes);
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
 const start = async () => {

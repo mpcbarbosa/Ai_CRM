@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { LeadStatus, ActivityType } from '@prisma/client';
+import { Resend } from 'resend';
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
@@ -453,8 +454,13 @@ export async function leadsRoutes(app: FastifyInstance) {
       </div>
     `;
 
-    const { Resend } = await import('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      logger.error('RESEND_API_KEY not configured');
+      return reply.status(500).send({ error: 'RESEND_API_KEY não configurada no servidor. Adiciona a variável de ambiente no Render.' });
+    }
+
+    const resend = new Resend(apiKey);
 
     const { data, error } = await resend.emails.send({
       from: 'Gobii AI CRM <onboarding@resend.dev>',
