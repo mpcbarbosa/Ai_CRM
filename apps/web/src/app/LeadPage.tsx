@@ -39,6 +39,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [extraRecipients, setExtraRecipients] = useState('');
   const [defaultRecipients, setDefaultRecipients] = useState<string[]>([]);
+  const [enriching, setEnriching] = useState(false);
 
   const loadLead = useCallback(async () => {
     try {
@@ -131,6 +132,30 @@ export default function LeadPage({ leadId }: { leadId: string }) {
       });
   }
 
+  async function enrichLead() {
+    setEnriching(true);
+    try {
+      const res = await fetch(API + '/api/leads/' + leadId + '/enrich', { method: 'POST' });
+      const data = await res.json();
+      if (data.error) {
+        alert('Erro no enriquecimento: ' + data.error);
+      } else {
+        const msg = [
+          '✅ Enriquecimento concluído!',
+          data.enriched ? '• Dados da empresa atualizados' : '',
+          data.newContacts > 0 ? `• ${data.newContacts} novo(s) contacto(s) adicionado(s)` : '',
+          data.technologies > 0 ? `• ${data.technologies} tecnologias identificadas` : '',
+        ].filter(Boolean).join('\n');
+        alert(msg);
+        loadLead();
+      }
+    } catch {
+      alert('Erro de rede no enriquecimento.');
+    } finally {
+      setEnriching(false);
+    }
+  }
+
   async function changeStatus(status: string) {
     await fetch(API + '/api/leads/' + leadId + '/status', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -207,6 +232,10 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             style={{ background: '#0f172a', color: '#7c3aed', border: '1px solid #7c3aed', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
             ✉ Enviar por Email
           </button>
+          <button onClick={enrichLead} disabled={enriching}
+            style={{ background: enriching ? '#1e293b' : '#0f172a', color: '#f59e0b', border: '1px solid #f59e0b', padding: '6px 16px', borderRadius: '8px', cursor: enriching ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, opacity: enriching ? 0.7 : 1 }}>
+            {enriching ? '⏳ A enriquecer...' : '✦ Enriquecer com Apollo'}
+          </button>
           {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
               <button key={s} onClick={() => changeStatus(s)}
                 style={{ background: STATUS_COLORS[s], color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
@@ -281,7 +310,25 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   <Field label="Pais" value={c.country} />
                   <Field label="Setor" value={c.sector} />
                   <Field label="Dimensao" value={c.size} />
+                  <Field label="Colaboradores" value={c.employeeCount ? c.employeeCount.toLocaleString('pt-PT') : null} />
+                  <Field label="Revenue" value={c.revenue} />
+                  <Field label="LinkedIn" value={c.linkedinUrl} />
                   <Field label="Descricao" value={c.description} />
+                  {c.technologies && c.technologies.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ color: '#475569', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>Tecnologias</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {c.technologies.map((t: string) => (
+                          <span key={t} style={{ background: '#1e3a5f', color: '#60a5fa', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {c.enrichedAt && (
+                    <div style={{ color: '#475569', fontSize: '11px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #334155' }}>
+                      ✦ Enriquecido via Apollo em {new Date(c.enrichedAt).toLocaleDateString('pt-PT')}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -292,8 +339,10 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               ) : c.contacts.map((ct: any) => (
                 <div key={ct.id} style={{ background: '#0f172a', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
                   <div style={{ fontWeight: 600, fontSize: '14px' }}>{ct.name}</div>
-                  {ct.role && <div style={{ color: '#60a5fa', fontSize: '12px' }}>{ct.role}</div>}
-                  {ct.email && <a href={'mailto:' + ct.email} style={{ color: '#7c3aed', fontSize: '12px' }}>{ct.email}</a>}
+                  {ct.role && <div style={{ color: '#60a5fa', fontSize: '12px' }}>{ct.role}{ct.seniority ? ` · ${ct.seniority}` : ''}</div>}
+                  {ct.email && <div><a href={'mailto:' + ct.email} style={{ color: '#7c3aed', fontSize: '12px' }}>{ct.email}</a></div>}
+                  {ct.linkedin && <div><a href={ct.linkedin} target="_blank" style={{ color: '#64748b', fontSize: '11px' }}>LinkedIn →</a></div>}
+                  {ct.sourceAgent === 'Apollo' && <div style={{ color: '#f59e0b', fontSize: '10px', marginTop: '4px' }}>✦ Apollo</div>}
                 </div>
               ))}
             </div>

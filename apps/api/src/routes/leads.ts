@@ -523,4 +523,117 @@ export async function leadsRoutes(app: FastifyInstance) {
     logger.warn('Database reset by admin');
     return reply.send({ message: 'Database cleared successfully' });
   });
+
+  // POST /api/leads/:id/enrich — Apollo.io enrichment
+  app.post('/api/leads/:id/enrich', async (req, reply) => {
+    try {
+      const { id } = req.params as { id: string };
+      const apiKey = process.env.APOLLO_API_KEY;
+      if (!apiKey) return reply.status(500).send({ error: 'APOLLO_API_KEY nao configurada no Render.' });
+
+      const lead = await prisma.lead.findUnique({
+        where: { id },
+        include: { company: { include: { contacts: true } } },
+      });
+      if (!lead) return reply.status(404).send({ error: 'Lead not found' });
+
+      const company = lead.company as any;
+      const domain = company.domain || company.website?.replace(/^https?:\/\//, '').split('/')[0];
+      if (!domain) return reply.status(400).send({ error: 'Empresa sem dominio para enriquecer.' });
+
+      // 1. Enriquecer empresa
+      const orgRes = await fetch('https://api.apollo.io/api/v1/organizations/enrich?domain=' + domain, {
+        headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+      });
+      const orgData = await orgRes.json();
+      const org = orgData.organization;
+
+      if (org) {
+        await prisma.company.update({
+          where: { id: company.id },
+          data: {
+            sector: org.industry || company.sector || undefined,
+            size: org.employee_count ? String(org.employee_count) : company.size || undefined,
+            employeeCount: org.employee_count || undefined,
+            revenue: org.annual_revenue_printed || org.revenue_range || undefined,
+            linkedinUrl: org.linkedin_url || undefined,
+            website: org.website_url || company.website || undefined,
+            country: org.country || company.country || undefined,
+            description: org.short_description || company.description || undefined,
+            technologies: org.current_technologies?.map((t: any) => t.name).slice(0, 20) || [],
+            enrichedAt: new Date(),
+          },
+        });
+        logger.info({ companyId: company.id, org: org.name }, 'Company enriched via Apollo');
+      }
+
+      // 2. Enriquecer contactos — buscar pessoas na empresa
+      const peopleRes = await fetch('https://api.apollo.io/api/v1/mixed_people/search', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organization_domains: [domain],
+          person_titles: ['CEO', 'CFO', 'CTO', 'COO', 'CIO', 'VP', 'Director', 'Head', 'Manager'],
+          per_page: 10,
+        }),
+      });
+      const peopleData = await peopleRes.json();
+      const people = peopleData.people || [];
+
+      let newContacts = 0;
+      for (const person of people) {
+        if (!person.name) continue;
+        const existing = company.contacts?.find((c: any) => c.name === person.name || (c.email && c.email === person.email));
+        if (!existing) {
+          await prisma.contact.create({
+            data: {
+              companyId: company.id,
+              name: person.name,
+              email: person.email || null,
+              role: person.title || null,
+              linkedin: person.linkedin_url || null,
+              seniority: person.seniority || null,
+              sourceAgent: 'Apollo',
+            },
+          });
+          newContacts++;
+        }
+      }
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          leadId: lead.id,
+          userName: 'Sistema',
+          action: 'COMPANY_EDITED',
+          details: {
+            source: 'Apollo',
+            domain,
+            enriched: !!org,
+            newContacts,
+            technologies: org?.current_technologies?.length || 0,
+          },
+        },
+      });
+
+      const updatedLead = await prisma.lead.findUnique({
+        where: { id },
+        include: { company: { include: { contacts: true, signals: { orderBy: { createdAt: 'desc' } } } } },
+      });
+
+      return reply.send({
+        success: true,
+        enriched: !!org,
+        newContacts,
+        technologies: org?.current_technologies?.length || 0,
+        lead: updatedLead,
+      });
+
+    } catch (err: any) {
+      logger.error({ err: err?.message }, 'Apollo enrichment error');
+      return reply.status(500).send({ error: 'Erro no enriquecimento', detail: err?.message });
+    }
+  });
 }
+
+// This is appended - will be integrated properly

@@ -28,19 +28,24 @@ enum UserRole {
 }
 
 model Company {
-  id          String    @id @default(cuid())
-  name        String
-  domain      String    @unique
-  website     String?
-  country     String?
-  sector      String?
-  size        String?
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  contacts    Contact[]
-  signals     LeadSignal[]
-  lead        Lead?
+  id            String    @id @default(cuid())
+  name          String
+  domain        String    @unique
+  website       String?
+  country       String?
+  sector        String?
+  size          String?
+  description   String?
+  revenue       String?
+  employeeCount Int?
+  linkedinUrl   String?
+  technologies  String[]
+  enrichedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  contacts      Contact[]
+  signals       LeadSignal[]
+  lead          Lead?
 }
 
 model Contact {
@@ -51,6 +56,7 @@ model Contact {
   role        String?
   phone       String?
   linkedin    String?
+  seniority   String?
   sourceAgent String?
   createdAt   DateTime @default(now())
   company     Company  @relation(fields: [companyId], references: [id])
@@ -192,3 +198,6 @@ model Setting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+// Note: Run migration to add these fields to Company
+// revenue, employeeCount, linkedinUrl, technologies, enrichedAt
