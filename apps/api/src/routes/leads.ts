@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import { LeadStatus, ActivityType } from '@prisma/client';
-import { Resend } from 'resend';
+import * as nodemailer from 'nodemailer';
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
@@ -455,27 +455,26 @@ export async function leadsRoutes(app: FastifyInstance) {
         </div>
       `;
 
-      const apiKey = process.env.RESEND_API_KEY;
-      if (!apiKey) {
-        return reply.status(500).send({ error: 'RESEND_API_KEY nao configurada. Adiciona a variavel de ambiente no Render.' });
+      const gmailUser = process.env.GMAIL_USER;
+      const gmailPass = process.env.GMAIL_APP_PASSWORD;
+      if (!gmailUser || !gmailPass) {
+        return reply.status(500).send({ error: 'GMAIL_USER ou GMAIL_APP_PASSWORD nao configurados no Render.' });
       }
 
-      const resend = new Resend(apiKey);
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      });
 
-      const { data, error } = await resend.emails.send({
-        from: 'Gobii AI CRM <onboarding@resend.dev>',
-        to: allRecipients,
+      await transporter.sendMail({
+        from: `Gobii AI CRM <${gmailUser}>`,
+        to: allRecipients.join(', '),
         subject: `[Gobii CRM] ${c?.name || 'Lead'} - ${lead.status} | Score: ${lead.totalScore || 0}`,
         html,
       });
 
-      if (error) {
-        logger.error({ error }, 'Resend email error');
-        return reply.status(500).send({ error: 'Falha ao enviar email', detail: error });
-      }
-
-      logger.info({ emailId: data?.id, recipients: allRecipients }, 'Email sent successfully');
-      return reply.send({ success: true, emailId: data?.id, recipients: allRecipients });
+      logger.info({ recipients: allRecipients }, 'Email sent successfully via Gmail');
+      return reply.send({ success: true, recipients: allRecipients });
 
     } catch (err: any) {
       logger.error({ err: err?.message || err }, 'send-email unexpected error');
@@ -485,10 +484,12 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   // GET /api/debug/email — diagnóstico do sistema de email
   app.get('/api/debug/email', async (req, reply) => {
-    const apiKey = process.env.RESEND_API_KEY;
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
     return reply.send({
-      resend_key_configured: !!apiKey,
-      resend_key_prefix: apiKey ? apiKey.substring(0, 8) + '...' : null,
+      gmail_user_configured: !!gmailUser,
+      gmail_user: gmailUser || null,
+      gmail_pass_configured: !!gmailPass,
       node_version: process.version,
     });
   });
