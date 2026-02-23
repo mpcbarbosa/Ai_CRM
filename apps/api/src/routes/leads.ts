@@ -19,7 +19,7 @@ export async function leadsRoutes(app: FastifyInstance) {
     });
     // Pipeline only shows LeadScanner leads (other agents have their own tabs)
     const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'CLEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT', 'ERP_PROSPECT'];
-    const EMPLOYMENT_KEYWORDS = ['recrut', 'contract', 'hiring', 'emprego', 'vaga', 'talent', 'staff', 'recruiter', 'hr manager', 'people manager'];
+    const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'hr manager', 'people manager', 'talent acquisition', 'oferta de emprego', 'abertura de vaga', 'it recruiter', 'erp recruiter', 'sap recruiter', 'job opening'];
     const filtered = leads.filter((l: any) => {
       const sig = l.company?.signals?.[0];
       if (!sig) return true;
@@ -672,7 +672,7 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   // GET /api/signals/employment — employment signals
   app.get('/api/signals/employment', async (req, reply) => {
-    const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'emprego', 'vaga', 'talent', 'staff', 'hr manager'];
+    const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'hr manager', 'people manager', 'talent acquisition', 'oferta de emprego', 'abertura de vaga', 'it recruiter', 'erp recruiter', 'sap recruiter', 'job opening'];
     const signals = await prisma.leadSignal.findMany({
       orderBy: { createdAt: 'desc' },
       include: { company: true },

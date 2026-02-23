@@ -331,16 +331,25 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Pais</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Tipo Expansao</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Impacto ERP</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Prob ERP</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
-              <tbody>{expansions.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma expansao." /></td></tr> : expansions.map((s: any) => { const r = s.rawData || {}; return (
-                <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
+              <tbody>{expansions.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma expansao." /></td></tr> : expansions.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
+                <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => lead && router.push('/leads/' + lead.id)}>{r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
                   <td style={{ padding: '12px 16px' }}><ProbBadge value={r.probabilidade_erp || ''} /></td>
                   <td style={{ padding: '12px 16px' }}>{s.sourceUrl?.startsWith('http') ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {lead
+                      ? <span onClick={() => router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
+                      : <button onClick={() => migrateEmploymentToPipeline(s)} disabled={migratingId === s.id}
+                          style={{ background: migratingId === s.id ? '#334155' : '#0f4c81', color: 'white', border: '1px solid #1d4ed8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {migratingId === s.id ? '...' : '+ Pipeline'}
+                        </button>}
+                  </td>
                 </tr>);})}
               </tbody>
             </table>
