@@ -117,13 +117,23 @@ export default function Dashboard() {
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
   async function migrateEmploymentToPipeline(signal: any) {
-    setMigratingId(signal.id);
-    // Change triggerType to LEAD_SCAN so it shows in pipeline
-    await fetch(API + '/api/signals/' + signal.id + '/reclassify', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ triggerType: 'LEAD_SCAN' }),
-    });
+    const sid = String(signal.id);
+    setMigratingId(sid);
+    try {
+      const res = await fetch(API + '/api/signals/' + sid + '/reclassify', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ triggerType: 'LEAD_SCAN' }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        console.error('Reclassify error:', res.status, err);
+        alert('Erro ao migrar: ' + res.status + ' ' + err);
+      }
+    } catch(e) {
+      console.error('Reclassify fetch error:', e);
+      alert('Erro de rede: ' + String(e));
+    }
     setMigratingId(null);
     load();
   }
