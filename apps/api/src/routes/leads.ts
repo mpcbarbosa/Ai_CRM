@@ -371,6 +371,107 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send({ sectors });
   });
 
+  // POST /api/leads/:id/send-email — envio automático via Resend
+  app.post('/api/leads/:id/send-email', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { extraRecipients } = req.body as { extraRecipients?: string[] };
+
+    // Carregar lead completo
+    const lead = await prisma.lead.findUnique({
+      where: { id },
+      include: {
+        company: { include: { signals: { orderBy: { createdAt: 'desc' }, take: 5 } } },
+        activities: { orderBy: { createdAt: 'desc' }, take: 3 },
+        opportunities: true,
+      },
+    });
+    if (!lead) return reply.status(404).send({ error: 'Lead not found' });
+
+    // Carregar destinatários das settings
+    const settingRow = await prisma.setting.findUnique({ where: { key: 'emailRecipients' } });
+    const defaultRecipients: string[] = settingRow?.value
+      ? settingRow.value.split(',').map((e: string) => e.trim()).filter(Boolean)
+      : [];
+    const allRecipients = [...defaultRecipients, ...(extraRecipients || [])].filter(Boolean);
+
+    if (allRecipients.length === 0) {
+      return reply.status(400).send({ error: 'Nenhum destinatário configurado. Adiciona emails em ⚙️ Configurações.' });
+    }
+
+    const c = lead.company as any;
+    const signals = (c?.signals || []).map((s: any) =>
+      `<li><strong>[${s.type}]</strong> ${s.title || s.type} — score: ${s.score || 0}</li>`
+    ).join('');
+
+    const scoreColor = (lead.totalScore || 0) >= 100 ? '#16a34a' : (lead.totalScore || 0) >= 70 ? '#2563eb' : '#64748b';
+    const statusColors: Record<string, string> = {
+      NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d'
+    };
+    const statusColor = statusColors[lead.status] || '#475569';
+
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; background: #0f172a; color: #f8fafc; border-radius: 12px; overflow: hidden;">
+        <div style="background: #1e293b; padding: 24px 32px; border-bottom: 1px solid #334155;">
+          <span style="font-size: 20px; font-weight: 800;">Ai CRM</span>
+          <span style="background: #7c3aed; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; margin-left: 10px;">Gobii Intelligence</span>
+        </div>
+        <div style="padding: 32px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+            <h1 style="color: #f8fafc; font-size: 24px; font-weight: 800; margin: 0;">${c?.name || 'N/A'}</h1>
+            <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;">${lead.status}</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+            <div style="background: #1e293b; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Score Total</div>
+              <div style="color: ${scoreColor}; font-size: 28px; font-weight: 800;">${lead.totalScore || 0}</div>
+            </div>
+            <div style="background: #1e293b; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Sinais</div>
+              <div style="color: #f8fafc; font-size: 28px; font-weight: 800;">${c?.signals?.length || 0}</div>
+            </div>
+          </div>
+          <div style="background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 12px;">Informação da Empresa</div>
+            ${c?.sector ? `<div style="margin-bottom: 8px;"><span style="color: #64748b; font-size: 12px;">Sector:</span> <span style="color: #f8fafc; font-size: 13px;">${c.sector}</span></div>` : ''}
+            ${c?.country ? `<div style="margin-bottom: 8px;"><span style="color: #64748b; font-size: 12px;">País:</span> <span style="color: #f8fafc; font-size: 13px;">${c.country}</span></div>` : ''}
+            ${c?.size ? `<div style="margin-bottom: 8px;"><span style="color: #64748b; font-size: 12px;">Tamanho:</span> <span style="color: #f8fafc; font-size: 13px;">${c.size}</span></div>` : ''}
+            ${c?.website || c?.domain ? `<div style="margin-bottom: 8px;"><span style="color: #64748b; font-size: 12px;">Website:</span> <a href="${c.website || c.domain}" style="color: #7c3aed; font-size: 13px;">${c.website || c.domain}</a></div>` : ''}
+          </div>
+          ${signals ? `
+          <div style="background: #1e293b; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <div style="color: #64748b; font-size: 11px; text-transform: uppercase; margin-bottom: 12px;">Sinais Recentes</div>
+            <ul style="margin: 0; padding-left: 16px; color: #f8fafc; font-size: 13px; line-height: 1.8;">${signals}</ul>
+          </div>` : ''}
+          <a href="https://ai-crm-web-4blo.onrender.com/leads/${lead.id}"
+            style="display: block; background: #7c3aed; color: white; text-align: center; padding: 14px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px;">
+            Ver Lead no CRM →
+          </a>
+        </div>
+        <div style="background: #1e293b; padding: 16px 32px; text-align: center; color: #475569; font-size: 11px; border-top: 1px solid #334155;">
+          Gobii AI CRM — Enviado automaticamente
+        </div>
+      </div>
+    `;
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    const { data, error } = await resend.emails.send({
+      from: 'Gobii AI CRM <onboarding@resend.dev>',
+      to: allRecipients,
+      subject: `[Gobii CRM] ${c?.name || 'Lead'} — ${lead.status} | Score: ${lead.totalScore || 0}`,
+      html,
+    });
+
+    if (error) {
+      logger.error({ error }, 'Resend email error');
+      return reply.status(500).send({ error: 'Falha ao enviar email', detail: error });
+    }
+
+    logger.info({ emailId: data?.id, recipients: allRecipients }, 'Email sent successfully');
+    return reply.send({ success: true, emailId: data?.id, recipients: allRecipients });
+  });
+
   app.post('/api/admin/resolve-migration', async (req, reply) => {
     // Resolve failed migration 20260221000002 by marking it as rolled back
     await prisma.$executeRawUnsafe(`

@@ -105,14 +105,30 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   }
 
   function sendEmail() {
-    const { subject, body } = buildEmailContent();
     const extra = extraRecipients.split(',').map((e: string) => e.trim()).filter(Boolean);
-    const allRecipients = [...defaultRecipients, ...extra];
-    const to = allRecipients.join(',');
-    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoUrl, '_blank');
+
+    const [sending, setSendingLocal] = [false, () => {}]; // placeholder
     setShowEmailModal(false);
-    setExtraRecipients('');
+
+    setSaving(true);
+    fetch(API + '/api/leads/' + leadId + '/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extraRecipients: extra }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          alert('Erro ao enviar email: ' + data.error);
+        } else {
+          alert('✅ Email enviado com sucesso para: ' + data.recipients.join(', '));
+        }
+      })
+      .catch(() => alert('Erro de rede ao enviar email.'))
+      .finally(() => {
+        setSaving(false);
+        setExtraRecipients('');
+      });
   }
 
   async function changeStatus(status: string) {
@@ -533,9 +549,9 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               style={{ background: 'transparent', color: '#64748b', border: '1px solid #334155', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
               Cancelar
             </button>
-            <button onClick={sendEmail}
-              style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
-              ✉ Abrir no Email
+            <button onClick={sendEmail} disabled={saving}
+              style={{ background: saving ? '#4c1d95' : '#7c3aed', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
+              {saving ? '⏳ A enviar...' : '✉ Enviar Email'}
             </button>
           </div>
         </div>
