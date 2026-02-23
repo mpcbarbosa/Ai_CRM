@@ -130,6 +130,7 @@ export default function Dashboard() {
       <div style={{ background: '#1e293b', borderBottom: '1px solid #334155', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px', fontWeight: 800, color: '#f8fafc' }}>Ai CRM</span>
         <span style={{ background: '#7c3aed', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>Gobii Intelligence</span>
+        <a href="/settings" style={{ marginLeft: 'auto', color: '#64748b', textDecoration: 'none', fontSize: '13px', padding: '6px 14px', border: '1px solid #334155', borderRadius: '8px' }}>⚙️ Configurações</a>
       </div>
 
       <div style={{ padding: '32px' }}>
