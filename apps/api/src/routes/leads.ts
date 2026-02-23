@@ -15,11 +15,17 @@ export async function leadsRoutes(app: FastifyInstance) {
           },
         },
       },
-      orderBy: { totalScore: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
+    // Pipeline only shows LeadScanner leads (C-Level, RFP, Expansion have their own tabs)
+    const PIPELINE_AGENTS = ['LeadScanner', 'lead_scanner', 'LEAD_SCANNER'];
+    const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT'];
     const filtered = leads.filter((l: any) => {
       const sig = l.company?.signals?.[0];
-      return !sig || sig.triggerType !== 'SECTOR_INVESTMENT';
+      if (!sig) return true; // no signal, show in pipeline
+      // Exclude signals that belong to their own dedicated tabs
+      if (PIPELINE_TRIGGERS.includes(sig.triggerType)) return false;
+      return true;
     });
     return reply.send(filtered);
   });

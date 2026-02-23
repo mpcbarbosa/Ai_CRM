@@ -57,7 +57,7 @@ export default function Dashboard() {
   const [filterSector, setFilterSector] = useState('');
   const [filterAgent, setFilterAgent] = useState('');
   const [filterScoreMin, setFilterScoreMin] = useState('');
-  const [sortBy, setSortBy] = useState<'score' | 'name' | 'date'>('score');
+  const [sortBy, setSortBy] = useState<'score' | 'name' | 'date' | 'updated'>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const load = useCallback(async () => {
@@ -71,6 +71,15 @@ export default function Dashboard() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    // Restore scroll position when returning from lead detail
+    const savedY = sessionStorage.getItem('pipelineScrollY');
+    if (savedY) {
+      setTimeout(() => { window.scrollTo({ top: Number(savedY), behavior: 'instant' }); }, 100);
+      sessionStorage.removeItem('pipelineScrollY');
+    }
+  }, []);
 
   const uniqueSectors = useMemo(() => [...new Set(leads.map((l: any) => l.company?.sector).filter(Boolean))].sort() as string[], [leads]);
   const uniqueAgents = useMemo(() => [...new Set(leads.flatMap((l: any) => (l.company?.signals || []).map((s: any) => s.agentName?.replace('SAP_S4HANA_', '').replace('_Daily', '').replace('_Excel', ''))).filter(Boolean))].sort() as string[], [leads]);
@@ -86,6 +95,7 @@ export default function Dashboard() {
       let va: any, vb: any;
       if (sortBy === 'score') { va = a.totalScore || 0; vb = b.totalScore || 0; }
       else if (sortBy === 'name') { va = a.company?.name || ''; vb = b.company?.name || ''; }
+      else if (sortBy === 'updated') { va = new Date(a.updatedAt || a.createdAt).getTime(); vb = new Date(b.updatedAt || b.createdAt).getTime(); }
       else { va = new Date(a.createdAt).getTime(); vb = new Date(b.createdAt).getTime(); }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
@@ -107,7 +117,7 @@ export default function Dashboard() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
     await fetch(API + '/api/leads/' + leadId + '/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
   }
-  function toggleSort(field: 'score' | 'name' | 'date') { if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortBy(field); setSortDir('desc'); } }
+  function toggleSort(field: 'score' | 'name' | 'date' | 'updated') { if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortBy(field); setSortDir('desc'); } }
   function SortIcon({ field }: { field: string }) { if (sortBy !== field) return <span style={{ color: '#334155', marginLeft: '4px' }}>↕</span>; return <span style={{ color: '#7c3aed', marginLeft: '4px' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>; }
   const hasFilters = search || filterStatus || filterSector || filterAgent || filterScoreMin;
   function clearFilters() { setSearch(''); setFilterStatus(''); setFilterSector(''); setFilterAgent(''); setFilterScoreMin(''); }
@@ -158,10 +168,10 @@ export default function Dashboard() {
               </select>
               <input type="number" placeholder="Score min." value={filterScoreMin} onChange={e => setFilterScoreMin(e.target.value)} style={{ ...inputStyle, width: '100px' }} />
               <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-                {(['score', 'name', 'date'] as const).map(f => (
+                {(['score', 'name', 'date', 'updated'] as const).map(f => (
                   <button key={f} onClick={() => toggleSort(f)}
                     style={{ background: sortBy === f ? '#7c3aed' : '#0f172a', color: sortBy === f ? 'white' : '#64748b', border: '1px solid #334155', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-                    {f === 'score' ? 'Score' : f === 'name' ? 'Nome' : 'Data'}{sortBy === f ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    {f === 'score' ? 'Score' : f === 'name' ? 'Nome' : f === 'date' ? 'Entrada' : 'Alteração'}{sortBy === f ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
                   </button>
                 ))}
                 <div style={{ display: 'flex', border: '1px solid #334155', borderRadius: '8px', overflow: 'hidden' }}>
@@ -179,28 +189,33 @@ export default function Dashboard() {
 
         {!loading && tab === 'pipeline' && viewMode === 'table' && (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead><tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('name')}>Empresa <SortIcon field="name" /></th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('score')}>Score <SortIcon field="score" /></th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Trigger</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left' }}>Agente</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('date')}>Data <SortIcon field="date" /></th>
-            </tr></thead>
+            <thead>
+              <tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('name')}>Empresa <SortIcon field="name" /></th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('score')}>Score <SortIcon field="score" /></th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('date')}>Entrada <SortIcon field="date" /></th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('updated')}>Ult. Alteração <SortIcon field="updated" /></th>
+              </tr>
+            </thead>
             <tbody>
-              {filteredLeads.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
+              {filteredLeads.length === 0
+                ? <tr><td colSpan={6}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
                 : filteredLeads.map((lead: any) => (
-                  <tr key={lead.id} onClick={() => router.push('/leads/' + lead.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
+                  <tr key={lead.id}
+                    onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}
+                    style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} /></td>
+                    <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                      {lead.company?.name || '-'}<NewBadge date={lead.createdAt} />
+                    </td>
                     <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.sector || '-'}</td>
                     <td style={{ padding: '12px 16px' }}><ScoreBar score={lead.totalScore} /></td>
                     <td style={{ padding: '12px 16px' }}><StatusBadge status={lead.status} /></td>
-                    <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px' }}>{lead.company?.signals?.[0]?.triggerType || '-'}</td>
-                    <td style={{ padding: '12px 16px', color: '#7c3aed', fontSize: '12px' }}>{agentShort(lead.company?.signals?.[0]?.agentName)}</td>
                     <td style={{ padding: '12px 16px' }}><DateCell date={lead.createdAt} /></td>
+                    <td style={{ padding: '12px 16px' }}><DateCell date={lead.updatedAt || lead.createdAt} /></td>
                   </tr>
                 ))}
             </tbody>
