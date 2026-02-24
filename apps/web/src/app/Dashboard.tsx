@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [erpProspects, setErpProspects] = useState<any[]>([]);
   const [employment, setEmployment] = useState<any[]>([]);
   const [migratingId, setMigratingId] = useState<string | null>(null);
+  const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -145,6 +146,21 @@ export default function Dashboard() {
     load();
   }
 
+  async function moveLeadToTab(lead: any, triggerType: string) {
+    setMovingLeadId(lead.id);
+    // Update the primary signal's triggerType
+    const sig = lead.company?.signals?.[0];
+    if (sig) {
+      await fetch(API + '/api/signals/' + sig.id + '/reclassify', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ triggerType }),
+      });
+    }
+    setMovingLeadId(null);
+    load();
+  }
+
   async function handleDrop(leadId: string, newStatus: string) {
     const lead = leads.find(l => l.id === leadId);
     if (!lead || lead.status === newStatus) return;
@@ -231,25 +247,41 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('date')}>Entrada <SortIcon field="date" /></th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('updated')}>Ult. Alteração <SortIcon field="updated" /></th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Mover</th>
               </tr>
             </thead>
             <tbody>
               {filteredLeads.length === 0
-                ? <tr><td colSpan={6}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
+                ? <tr><td colSpan={7}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
                 : filteredLeads.map((lead: any) => (
                   <tr key={lead.id}
-                    onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}
-                    style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }}
+                    style={{ borderBottom: '1px solid #1e293b' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                    <td style={{ padding: '12px 16px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>
                       {lead.company?.name || '-'}<NewBadge date={lead.createdAt} />
                     </td>
-                    <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.sector || '-'}</td>
-                    <td style={{ padding: '12px 16px' }}><ScoreBar score={lead.totalScore} /></td>
-                    <td style={{ padding: '12px 16px' }}><StatusBadge status={lead.status} /></td>
-                    <td style={{ padding: '12px 16px' }}><DateCell date={lead.createdAt} /></td>
-                    <td style={{ padding: '12px 16px' }}><DateCell date={lead.updatedAt || lead.createdAt} /></td>
+                    <td style={{ padding: '12px 16px', color: '#94a3b8', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>{lead.company?.sector || '-'}</td>
+                    <td style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}><ScoreBar score={lead.totalScore} /></td>
+                    <td style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}><StatusBadge status={lead.status} /></td>
+                    <td style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}><DateCell date={lead.createdAt} /></td>
+                    <td style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}><DateCell date={lead.updatedAt || lead.createdAt} /></td>
+                    <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
+                      {movingLeadId === lead.id
+                        ? <span style={{ color: '#475569', fontSize: '12px' }}>...</span>
+                        : <select
+                            defaultValue=""
+                            onChange={e => { if (e.target.value) { moveLeadToTab(lead, e.target.value); e.target.value = ''; } }}
+                            style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#64748b', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}>
+                            <option value="" disabled>↗ Mover</option>
+                            <option value="C_LEVEL_CHANGE">→ C-Level</option>
+                            <option value="EXPANSION_SIGNAL">→ Expansão</option>
+                            <option value="RFP_SIGNAL">→ RFP</option>
+                            <option value="EMPLOYMENT">→ Emprego</option>
+                            <option value="SECTOR_INVESTMENT">→ Setores</option>
+                          </select>}
+                    </td>
                   </tr>
                 ))}
             </tbody>

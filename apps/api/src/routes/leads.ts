@@ -18,7 +18,7 @@ export async function leadsRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
     });
     // Pipeline only shows LeadScanner leads (other agents have their own tabs)
-    const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'CLEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT', 'ERP_PROSPECT'];
+    const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'CLEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT', 'ERP_PROSPECT', 'EMPLOYMENT'];
     const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'hr manager', 'people manager', 'talent acquisition', 'oferta de emprego', 'abertura de vaga', 'it recruiter', 'erp recruiter', 'sap recruiter', 'job opening'];
     const seen = new Set<string>();
     const filtered = leads.filter((l: any) => {
