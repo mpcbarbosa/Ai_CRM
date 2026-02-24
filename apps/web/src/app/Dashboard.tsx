@@ -174,8 +174,12 @@ export default function Dashboard() {
   }
 
   async function moveLeadToTab(lead: any, triggerType: string) {
+    if (triggerType === 'NURTURING') {
+      setNurtureModal(lead);
+      setNurtureForm({ reason: '', notes: '', nextContactDate: '' });
+      return;
+    }
     setMovingLeadId(lead.id);
-    // Update the primary signal's triggerType
     const sig = lead.company?.signals?.[0];
     if (sig) {
       await fetch(API + '/api/signals/' + sig.id + '/reclassify', {
@@ -302,6 +306,7 @@ export default function Dashboard() {
                             onChange={e => { if (e.target.value) { moveLeadToTab(lead, e.target.value); e.target.value = ''; } }}
                             style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', color: '#64748b', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}>
                             <option value="" disabled>↗ Mover</option>
+                            <option value="NURTURING">🔄 Nurturing</option>
                             <option value="C_LEVEL_CHANGE">→ C-Level</option>
                             <option value="EXPANSION_SIGNAL">→ Expansão</option>
                             <option value="RFP_SIGNAL">→ RFP</option>
