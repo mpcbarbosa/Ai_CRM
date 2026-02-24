@@ -336,16 +336,17 @@ export async function ingestRoutes(app: FastifyInstance) {
 
     for (const signal of signals) {
       try {
+        // Only update company fields if agent provides non-empty values (never overwrite with empty)
+        const companyUpdate: Record<string, any> = { updatedAt: new Date() };
+        if (signal.companyName) companyUpdate.name = signal.companyName;
+        if (signal.website) companyUpdate.website = signal.website;
+        if (signal.country) companyUpdate.country = signal.country;
+        if (signal.sector) companyUpdate.sector = signal.sector;
+        if (signal.size) companyUpdate.size = signal.size;
+
         const company = await prisma.company.upsert({
           where: { domain: signal.domain },
-          update: {
-            name: signal.companyName,
-            website: signal.website || undefined,
-            country: signal.country || undefined,
-            sector: signal.sector || undefined,
-            size: signal.size || undefined,
-            updatedAt: new Date(),
-          },
+          update: companyUpdate,
           create: {
             domain: signal.domain,
             name: signal.companyName,
@@ -357,15 +358,21 @@ export async function ingestRoutes(app: FastifyInstance) {
         });
 
         if (signal.contactName) {
-          await prisma.contact.create({
-            data: {
-              companyId: company.id,
-              name: signal.contactName,
-              email: signal.contactEmail || undefined,
-              role: signal.contactRole || undefined,
-              sourceAgent: agentName,
-            },
-          }).catch(() => {});
+          // Only create contact if not already exists (same name in same company)
+          const existingContact = await prisma.contact.findFirst({
+            where: { companyId: company.id, name: signal.contactName },
+          });
+          if (!existingContact) {
+            await prisma.contact.create({
+              data: {
+                companyId: company.id,
+                name: signal.contactName,
+                email: signal.contactEmail || undefined,
+                role: signal.contactRole || undefined,
+                sourceAgent: agentName,
+              },
+            }).catch(() => {});
+          }
         }
 
         const scores = (signal.score_final && signal.score_final > 0)
@@ -374,6 +381,27 @@ export async function ingestRoutes(app: FastifyInstance) {
 
         if (signal.estimatedValue && signal.estimatedValue > 100000) {
           scores.final = Math.min(scores.final + 10, 150);
+        }
+
+        // Deduplicate signals: skip if same company+triggerType+summary in last 7 days
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const existingSignal = signal.summary ? await prisma.leadSignal.findFirst({
+          where: {
+            companyId: company.id,
+            triggerType: signal.triggerType,
+            summary: signal.summary,
+            createdAt: { gte: sevenDaysAgo },
+          },
+        }) : null;
+
+        if (existingSignal) {
+          results.push({
+            company: { id: company.id, name: company.name, domain: company.domain },
+            signal: { id: existingSignal.id, triggerType: signal.triggerType, score_final: scores.final, skipped: true },
+            lead: { id: 'existing', totalScore: 0, status: 'skipped' },
+          });
+          continue;
         }
 
         const leadSignal = await prisma.leadSignal.create({
@@ -401,8 +429,14 @@ export async function ingestRoutes(app: FastifyInstance) {
 
         const currentLead = await prisma.lead.findUnique({ where: { companyId: company.id } });
         let newStatus: 'NEW' | 'UNDER_QUALIFICATION' | 'MQL' | 'SQL' | 'DISCARDED' = (currentLead?.status as any) || 'NEW';
+        // Status can only go forward, never backward (agent runs never downgrade)
+        const STATUS_ORDER = ['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'];
+        const currentIdx = STATUS_ORDER.indexOf(newStatus);
         if (newStatus !== 'SQL' && newStatus !== 'DISCARDED') {
-          if (totalScore >= MQL_THRESHOLD) newStatus = 'MQL';
+          if (totalScore >= MQL_THRESHOLD) {
+            const proposedIdx = STATUS_ORDER.indexOf('MQL');
+            if (proposedIdx > currentIdx) newStatus = 'MQL';
+          }
         }
 
         const lead = await prisma.lead.upsert({
