@@ -325,8 +325,16 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             {enriching ? '⏳ A enriquecer...' : '✦ Enriquecer com Apollo'}
           </button>
           {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'NURTURING', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
-              <button key={s} onClick={() => {
-                  if (s === 'NURTURING') { setShowNurtureModal(true); return; }
+              <button key={s} onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (s === 'NURTURING') {
+                    console.log('NURTURING clicked, setting modal true');
+                    setNurtureForm({ reason: '', notes: '', nextContactDate: '' });
+                    setShowNurtureModal(true);
+                    console.log('modal state should be true now');
+                    return;
+                  }
                   changeStatus(s);
                 }}
                 style={{ background: STATUS_COLORS[s] || '#475569', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
@@ -889,7 +897,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
       </div>
     )}
     {showNurtureModal && (
-      <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
           <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Mover para Nurturing</div>
           <div style={{ marginBottom: '14px' }}>
