@@ -91,14 +91,18 @@ export default function Dashboard() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Restore scroll position after data loads
   useEffect(() => {
-    // Restore scroll position when returning from lead detail
     const savedY = sessionStorage.getItem('pipelineScrollY');
-    if (savedY) {
-      setTimeout(() => { window.scrollTo({ top: Number(savedY), behavior: 'instant' }); }, 100);
+    if (savedY && !loading) {
       sessionStorage.removeItem('pipelineScrollY');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: Number(savedY), behavior: 'instant' });
+        });
+      });
     }
-  }, []);
+  }, [loading]);
 
   const uniqueSectors = useMemo(() => [...new Set(leads.map((l: any) => l.company?.sector).filter(Boolean))].sort() as string[], [leads]);
   const uniqueAgents = useMemo(() => [...new Set(leads.flatMap((l: any) => (l.company?.signals || []).map((s: any) => s.agentName?.replace('SAP_S4HANA_', '').replace('_Daily', '').replace('_Excel', ''))).filter(Boolean))].sort() as string[], [leads]);
