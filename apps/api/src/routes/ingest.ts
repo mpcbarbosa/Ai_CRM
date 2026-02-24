@@ -147,58 +147,62 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_RFPScanner_Daily') {
-    return extractArray(body).map(item => {
-      let estimatedValue: number | undefined;
-      if (item.valor_estimado) {
-        const cleaned = String(item.valor_estimado).replace(/\s*EUR\s*/i, '').replace(/\./g, '').replace(',', '.');
-        const parsed = parseFloat(cleaned);
-        if (!isNaN(parsed)) estimatedValue = parsed;
-      }
-      return {
-        companyName: String(item.entidade || ''),
-        domain: normalizeDomain(undefined, item.entidade as string) || 
-          String(item.entidade || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 40) + '.rfp.pt',
-        country: item.pais as string,
-        triggerType,
-        summary: item.descricao as string,
-        sourceUrl: item.fonte as string,
-        estimatedValue,
-        urgency: String(item.pertinencia_ERP || '').toLowerCase() === 'alto' ? 'HIGH' : undefined,
-        raw: item,
-      };
-    });
+    return extractArray(body)
+      .filter(item => !!(item.entidade || item.empresa || item.titulo || item.descricao))
+      .map(item => {
+        let estimatedValue: number | undefined;
+        if (item.valor_estimado) {
+          const cleaned = String(item.valor_estimado).replace(/\s*EUR\s*/i, '').replace(/\./g, '').replace(',', '.');
+          const parsed = parseFloat(cleaned);
+          if (!isNaN(parsed)) estimatedValue = parsed;
+        }
+        const name = String(item.entidade || item.empresa || item.titulo || 'RFP ' + (item.data || ''));
+        return {
+          companyName: name,
+          domain: normalizeDomain(undefined, name) ||
+            name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 40) + '.rfp.pt',
+          country: String(item.pais || 'Portugal'),
+          sector: String(item.tipo_entidade || ''),
+          triggerType,
+          summary: String(item.descricao || item.keywords || ''),
+          sourceUrl: String(item.fonte || ''),
+          estimatedValue,
+          urgency: String(item.pertinencia_ERP || '').toLowerCase().includes('alto') ? 'HIGH' : undefined,
+          raw: item,
+        };
+      });
   }
 
   if (agentName === 'SAP_S4HANA_ExpansionScanner_Daily') {
     return extractArray(body)
-      .filter(item => !!item.empresa)
+      .filter(item => !!(item.empresa || item.entidade))
       .map(item => ({
-        companyName: String(item.empresa || ''),
-        domain: normalizeDomain(undefined, item.empresa as string),
-        country: item.pais as string,
-        sector: item.setor as string,
+        companyName: String(item.empresa || item.entidade || ''),
+        domain: normalizeDomain(undefined, String(item.empresa || item.entidade || '')),
+        country: String(item.pais || 'Portugal'),
+        sector: String(item.setor || ''),
         triggerType,
-        summary: item.impacto_ERP as string,
-        sourceUrl: item.fonte as string,
-        urgency: String(item.probabilidade || '').toLowerCase() === 'alta' ? 'HIGH' : undefined,
-        raw: item,
+        summary: String(item.impacto_ERP || item.impacto_erp || item.descricao || ''),
+        sourceUrl: String(item.fonte || ''),
+        urgency: String(item.probabilidade || '').toLowerCase().includes('alta') || String(item.probabilidade || '').toLowerCase().includes('alto') ? 'HIGH' : undefined,
+        raw: { ...item as object, tipo_expansao: item.tipo_expansao, empresa: item.empresa },
       }));
   }
 
   if (agentName === 'SAP_S4HANA_LeadScoring_Excel') {
     return extractArray(body)
-      .filter(item => item.empresa && item.empresa !== 'Empresa n\u00e3o identificada')
+      .filter(item => item.empresa && !String(item.empresa).toLowerCase().includes('não identificada') && !String(item.empresa).toLowerCase().includes('nao identificada'))
       .map(item => ({
         companyName: String(item.empresa || ''),
-        domain: normalizeDomain(undefined, item.empresa as string),
-        country: item.pais as string,
-        sector: item.setor as string,
-        size: item.tamanho as string,
-        triggerType,
-        summary: item.resumo as string,
-        sourceUrl: item.fonte as string,
+        domain: normalizeDomain(String(item.domain || item.dominio || ''), String(item.empresa || '')),
+        country: String(item.pais || 'Portugal'),
+        sector: String(item.setor || ''),
+        size: String(item.tamanho || item.size || ''),
+        triggerType: 'LEAD_SCAN',
+        summary: String(item.resumo || item.summary || item.descricao || ''),
+        sourceUrl: String(item.fonte || item.source || ''),
         score_trigger: Number(item.score_trigger || 0),
-        score_probability: Number(item.score_probabilidade || 0),
+        score_probability: Number(item.score_probabilidade || item.score_probability || 0),
         score_final: Number(item.score_final || 0),
         raw: item,
       }));
