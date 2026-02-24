@@ -214,7 +214,7 @@ export default function Dashboard() {
 
         <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #1e293b', flexWrap: 'wrap' }}>
           {tabs.map(t => (
-            <button key={t.id} style={tabStyle(tab === t.id)} onClick={() => setTab(t.id)}>
+            <button key={t.id} style={tabStyle(tab === t.id)} onClick={() => setTabAndSave(t.id)}>
               {t.label}{t.count > 0 ? <span style={{ marginLeft: '6px', background: '#7c3aed', color: 'white', borderRadius: '10px', padding: '1px 6px', fontSize: '10px' }}>{t.count}</span> : null}
             </button>
           ))}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                   <div style={{ padding: '8px', minHeight: '80px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {colLeads.length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#334155', fontSize: '12px', border: '2px dashed #334155', borderRadius: '8px' }}>Arrasta aqui</div>}
                     {colLeads.map((lead: any) => (
-                      <div key={lead.id} draggable onDragStart={() => setDragging(lead.id)} onDragEnd={() => setDragging(null)} onClick={() => router.push('/leads/' + lead.id)}
+                      <div key={lead.id} draggable onDragStart={() => setDragging(lead.id)} onDragEnd={() => setDragging(null)} onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id)}
                         style={{ background: '#0f172a', borderRadius: '8px', padding: '12px', cursor: 'grab', border: '1px solid #334155', opacity: dragging === lead.id ? 0.5 : 1 }}
                         onMouseEnter={e => (e.currentTarget.style.borderColor = '#7c3aed')}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = '#334155')}>
@@ -351,7 +351,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fonte</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
               </tr></thead>
               <tbody>{clevels.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma alteracao C-Level." /></td></tr> : clevels.map((s: any) => { const r = s.rawData || {}; return (
-                <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.nome_pessoa || '-'}</td><td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.cargo || '-'}</td>
@@ -398,7 +398,7 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{expansions.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma expansao." /></td></tr> : expansions.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => { if(lead) { markRead(lead.id); router.push('/leads/' + lead.id); } }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => { if(lead) { markRead(lead.id); sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); } }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || (r.company as any)?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || (r.company as any)?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || r.trigger || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.impacto_erp || r.impacto_ERP || s.summary || '-'}</td>
@@ -407,7 +407,7 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                   <td style={{ padding: '12px 16px' }}>
                     {lead
-                      ? <span onClick={() => router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
+                      ? <span onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
                       : <button onClick={() => migrateEmploymentToPipeline(s)} disabled={migratingId === s.id}
                           style={{ background: migratingId === s.id ? '#334155' : '#0f4c81', color: 'white', border: '1px solid #1d4ed8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                           {migratingId === s.id ? '...' : '+ Pipeline'}
@@ -435,7 +435,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
               <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; const inPipeline = s.lead && s.lead.id; return (
-                <tr key={s.id} onClick={() => { markRead(s.id); setSelectedProspect(s); }}
+                <tr key={s.id} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); markRead(s.id); setSelectedProspect(s); }}
                   style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -456,7 +456,7 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
                     {inPipeline
-                      ? <span onClick={() => router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Pipeline →</span>
+                      ? <span onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Pipeline →</span>
                       : <button onClick={() => migrateToPipeline(s.id)} disabled={migratingId === s.id}
                           style={{ background: migratingId === s.id ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
                           {migratingId === s.id ? '...' : 'Migrar →'}
@@ -477,7 +477,7 @@ export default function Dashboard() {
           const sources = Array.isArray(r.sources) ? r.sources : [];
           return (
           <div style={{ marginTop: '20px' }}>
-            <button onClick={() => setSelectedProspect(null)} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>← Voltar à lista</button>
+            <button onClick={() => { setSelectedProspect(null); }} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>← Voltar à lista</button>
             <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -487,7 +487,7 @@ export default function Dashboard() {
                 </div>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {inPipeline
-                    ? <span onClick={() => router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>✓ Já no Pipeline — Ver Lead →</span>
+                    ? <span onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>✓ Já no Pipeline — Ver Lead →</span>
                     : <>
                         <button onClick={() => migrateToPipeline(s.id)} disabled={migratingId === s.id}
                           style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
@@ -596,7 +596,7 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px' }}>
                     {lead
-                      ? <span onClick={() => router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
+                      ? <span onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Ver Lead →</span>
                       : <button onClick={() => migrateEmploymentToPipeline(s)} disabled={migratingId === s.id}
                           style={{ background: migratingId === s.id ? '#334155' : '#0f4c81', color: 'white', border: '1px solid #1d4ed8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
                           {migratingId === s.id ? '...' : '+ Pipeline'}
@@ -617,7 +617,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Status</th><th style={{ padding: '12px 16px', textAlign: 'left' }}>Agente</th>
               </tr></thead>
               <tbody>{[...leads].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0)).map((lead: any) => (
-                <tr key={lead.id} onClick={() => router.push('/leads/' + lead.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                <tr key={lead.id} onClick={() => sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id)} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.country || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.company?.sector || '-'}</td>
