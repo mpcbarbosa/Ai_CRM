@@ -293,7 +293,6 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   ];
 
   return (
-    <>
     <div style={{ minHeight: '100vh', background: '#0f172a', color: '#f8fafc', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ background: '#1e293b', borderBottom: '1px solid #334155', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px', fontWeight: 800, color: '#f8fafc' }}>Ai CRM</span>
@@ -928,6 +927,5 @@ export default function LeadPage({ leadId }: { leadId: string }) {
       </div>
     )}
     </div>
-    </>
   );
 }
