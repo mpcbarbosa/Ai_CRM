@@ -85,6 +85,7 @@ enum LeadStatus {
   UNDER_QUALIFICATION
   MQL
   SQL
+  NURTURING
   DISCARDED
 }
 
@@ -125,6 +126,9 @@ model Lead {
   tags                String[]   @default([])
   notes               String?
   lostReason          String?
+  nextContactDate     DateTime?
+  nurtureReason       String?
+  nurtureNotes        String?
   lastActivityDate    DateTime   @default(now())
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt

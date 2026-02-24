@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
-const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d' };
+const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', NURTURING: '#0e7490', DISCARDED: '#7f1d1d' };
 const STAGE_COLORS: Record<string,string> = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK', 'LINKEDIN_INMAIL', 'LINKEDIN_MESSAGE'];
 const ACTIVITY_ICONS: Record<string,string> = { CALL: 'Tel', EMAIL: 'Email', MEETING: 'Meet', NOTE: 'Nota', TASK: 'Task', LINKEDIN_INMAIL: 'InMail', LINKEDIN_MESSAGE: 'LinkedIn' };
@@ -44,6 +44,9 @@ export default function LeadPage({ leadId }: { leadId: string }) {
   const [extraRecipients, setExtraRecipients] = useState('');
   const [defaultRecipients, setDefaultRecipients] = useState<string[]>([]);
   const [enriching, setEnriching] = useState(false);
+  const [showNurtureModal, setShowNurtureModal] = useState(false);
+  const [nurtureForm, setNurtureForm] = useState({ reason: '', notes: '', nextContactDate: '' });
+  const NURTURE_REASONS = ['Budget indisponível', 'Contrato atual em vigor', 'Não é prioridade agora', 'A avaliar internamente', 'Mudança de decisor', 'Outro'];
 
   const loadLead = useCallback(async () => {
     try {
@@ -321,10 +324,13 @@ export default function LeadPage({ leadId }: { leadId: string }) {
             style={{ background: enriching ? '#1e293b' : '#0f172a', color: '#f59e0b', border: '1px solid #f59e0b', padding: '6px 16px', borderRadius: '8px', cursor: enriching ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 700, opacity: enriching ? 0.7 : 1 }}>
             {enriching ? '⏳ A enriquecer...' : '✦ Enriquecer com Apollo'}
           </button>
-          {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
-              <button key={s} onClick={() => changeStatus(s)}
-                style={{ background: STATUS_COLORS[s], color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
-                {s === 'UNDER_QUALIFICATION' ? 'Under Qualification' : s === 'DISCARDED' ? 'Descartar' : 'Mover para ' + s}
+          {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'NURTURING', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
+              <button key={s} onClick={() => {
+                  if (s === 'NURTURING') { setShowNurtureModal(true); return; }
+                  changeStatus(s);
+                }}
+                style={{ background: STATUS_COLORS[s] || '#475569', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+                {s === 'UNDER_QUALIFICATION' ? 'Under Qualification' : s === 'DISCARDED' ? 'Descartar' : s === 'NURTURING' ? '🔄 Nurturing' : 'Mover para ' + s}
               </button>
             ))}
           </div>
@@ -878,6 +884,44 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               style={{ background: saving ? '#4c1d95' : '#7c3aed', color: 'white', border: 'none', padding: '8px 24px', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: saving ? 0.7 : 1 }}>
               {saving ? '⏳ A enviar...' : '✉ Enviar Email'}
             </button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showNurtureModal && (
+      <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
+          <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Mover para Nurturing</div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Razão</label>
+            <select value={nurtureForm.reason} onChange={e => setNurtureForm(f => ({ ...f, reason: e.target.value }))}
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }}>
+              <option value="">Seleciona...</option>
+              {NURTURE_REASONS.map((r: string) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Notas</label>
+            <textarea value={nurtureForm.notes} onChange={e => setNurtureForm(f => ({ ...f, notes: e.target.value }))} rows={3}
+              placeholder="Ex: Contrato atual termina em Setembro, voltar a contactar em Agosto..."
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Próximo contacto</label>
+            <input type="date" value={nurtureForm.nextContactDate} onChange={e => setNurtureForm(f => ({ ...f, nextContactDate: e.target.value }))}
+              style={{ background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setShowNurtureModal(false)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={async () => {
+                await fetch(API + '/api/leads/' + lead.id + '/status', {
+                  method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'NURTURING', nurtureReason: nurtureForm.reason, nurtureNotes: nurtureForm.notes, nextContactDate: nurtureForm.nextContactDate }),
+                });
+                setShowNurtureModal(false); router.back();
+              }}
+              style={{ background: '#0e7490', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
           </div>
         </div>
       </div>

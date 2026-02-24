@@ -185,6 +185,8 @@ export async function leadsRoutes(app: FastifyInstance) {
     const currentLead = await prisma.lead.findUnique({ where: { id } });
     const previousStatus = currentLead?.status;
 
+    const { nurtureReason, nurtureNotes, nextContactDate } = req.body as { status: any; lostReason?: string; nurtureReason?: string; nurtureNotes?: string; nextContactDate?: string };
+
     const lead = await prisma.lead.update({
       where: { id },
       data: {
@@ -192,6 +194,9 @@ export async function leadsRoutes(app: FastifyInstance) {
         salesQualified: status === 'SQL',
         marketingQualified: status === 'MQL' || status === 'SQL',
         lostReason: (status === 'DISCARDED' ? lostReason : undefined) ?? undefined,
+        nurtureReason: (status === 'NURTURING' ? nurtureReason : undefined) ?? undefined,
+        nurtureNotes: (status === 'NURTURING' ? nurtureNotes : undefined) ?? undefined,
+        nextContactDate: (status === 'NURTURING' && nextContactDate) ? new Date(nextContactDate) : undefined,
         updatedAt: new Date(),
       },
     });
@@ -666,6 +671,16 @@ export async function leadsRoutes(app: FastifyInstance) {
     }
   });
 
+
+  // GET /api/leads/nurturing — leads in nurturing status
+  app.get('/api/leads/nurturing', async (req, reply) => {
+    const leads = await prisma.lead.findMany({
+      where: { status: 'NURTURING' },
+      include: { company: true },
+      orderBy: { nextContactDate: 'asc' },
+    });
+    return reply.send(leads);
+  });
 
   // GET /api/leads/erp-prospects — Lorena Lee prospects pending pipeline migration
   app.get('/api/leads/erp-prospects', async (req, reply) => {

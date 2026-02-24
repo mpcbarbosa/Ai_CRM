@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 const STATUS_ORDER = ['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'];
-const STATUS_COLORS: Record<string, string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d' };
-const STATUS_LABELS: Record<string, string> = { NEW: 'New', UNDER_QUALIFICATION: 'Under Qual.', MQL: 'MQL', SQL: 'SQL', DISCARDED: 'Descartado' };
+const STATUS_COLORS: Record<string, string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', NURTURING: '#0e7490', DISCARDED: '#7f1d1d' };
+const STATUS_LABELS: Record<string, string> = { NEW: 'New', UNDER_QUALIFICATION: 'Under Qual.', MQL: 'MQL', SQL: 'SQL', NURTURING: 'Nurturing', DISCARDED: 'Descartado' };
 
 function ScoreBar({ score }: { score: number }) {
   const s = score || 0;
@@ -55,6 +55,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [erpProspects, setErpProspects] = useState<any[]>([]);
   const [employment, setEmployment] = useState<any[]>([]);
+  const [nurturing, setNurturing] = useState<any[]>([]);
+  const [nurtureModal, setNurtureModal] = useState<any | null>(null);
+  const [nurtureForm, setNurtureForm] = useState({ reason: '', notes: '', nextContactDate: '' });
   const [migratingId, setMigratingId] = useState<string | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
   const [readIds, setReadIds] = useState<Set<string>>(() => {
@@ -81,13 +84,15 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [lr, sr, secr, erpr, empr] = await Promise.all([fetch(API + '/api/leads?limit=200'), fetch(API + '/api/signals?limit=200'), fetch(API + '/api/sectors?limit=100'), fetch(API + '/api/leads/erp-prospects'), fetch(API + '/api/signals/employment')]);
+      const [lr, sr, secr, erpr, empr, nurtr] = await Promise.all([fetch(API + '/api/leads?limit=200'), fetch(API + '/api/signals?limit=200'), fetch(API + '/api/sectors?limit=100'), fetch(API + '/api/leads/erp-prospects'), fetch(API + '/api/signals/employment'), fetch(API + '/api/leads/nurturing')]);
       const [ld, sd, secd, erpd, empd] = await Promise.all([lr.json(), sr.json(), secr.json(), erpr.json(), empr.json()]);
       setLeads(ld.leads || ld || []);
       setSignals(sd.signals || sd || []);
       setSectors(secd.sectors || secd || []);
       setErpProspects(Array.isArray(erpd) ? erpd : []);
       setEmployment(Array.isArray(empd) ? empd : []);
+      const nurtd = await nurtr.json().catch(() => []);
+      setNurturing(Array.isArray(nurtd) ? nurtd : []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -132,7 +137,7 @@ export default function Dashboard() {
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
-  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Prospects', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
+  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Prospects', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'nurturing', label: '🔄 Nurturing', count: nurturing.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
   async function migrateEmploymentToPipeline(signal: any) {
@@ -608,6 +613,101 @@ export default function Dashboard() {
             </table>)}
           </div>
         )}
+
+        {!loading && tab === 'nurturing' && (() => {
+          const NURTURE_REASONS = ['Budget indisponível', 'Contrato atual em vigor', 'Não é prioridade agora', 'A avaliar internamente', 'Mudança de decisor', 'Outro'];
+          const today = new Date();
+          const in7 = new Date(); in7.setDate(today.getDate() + 7);
+          return (
+          <div style={{ marginTop: '20px' }}>
+            {nurturing.length === 0 ? <EmptyState msg="Sem leads em nurturing." /> : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead><tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Razão</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Notas</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Próximo contacto</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ações</th>
+              </tr></thead>
+              <tbody>{nurturing.map((lead: any) => {
+                const nextDate = lead.nextContactDate ? new Date(lead.nextContactDate) : null;
+                const isDue = nextDate && nextDate <= in7;
+                const isOverdue = nextDate && nextDate < today;
+                return (
+                <tr key={lead.id} style={{ borderBottom: '1px solid #1e293b', background: isOverdue ? '#7f1d1d11' : isDue ? '#78350f11' : 'transparent' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>
+                    {lead.company?.name || '-'}
+                    {isOverdue && <span style={{ marginLeft: '8px', background: '#ef4444', color: 'white', fontSize: '10px', padding: '1px 6px', borderRadius: '6px', fontWeight: 700 }}>VENCIDO</span>}
+                    {!isOverdue && isDue && <span style={{ marginLeft: '8px', background: '#f59e0b', color: 'white', fontSize: '10px', padding: '1px 6px', borderRadius: '6px', fontWeight: 700 }}>EM BREVE</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{lead.nurtureReason || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12px', maxWidth: '200px' }}>{lead.nurtureNotes || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {nextDate
+                      ? <span style={{ color: isOverdue ? '#ef4444' : isDue ? '#f59e0b' : '#4ade80', fontWeight: 600 }}>{nextDate.toLocaleDateString('pt-PT')}</span>
+                      : <span style={{ color: '#475569' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
+                    <button onClick={() => { setNurtureModal(lead); setNurtureForm({ reason: lead.nurtureReason || '', notes: lead.nurtureNotes || '', nextContactDate: lead.nextContactDate ? lead.nextContactDate.split('T')[0] : '' }); }}
+                      style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
+                      ✏️ Editar
+                    </button>
+                    <button onClick={async () => {
+                        await fetch(API + '/api/leads/' + lead.id + '/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'UNDER_QUALIFICATION' }) });
+                        load();
+                      }}
+                      style={{ background: '#1e293b', border: '1px solid #7c3aed', color: '#a78bfa', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
+                      → Retomar
+                    </button>
+                  </td>
+                </tr>);
+              })}</tbody>
+            </table>)}
+
+            {/* Nurture Modal */}
+            {nurtureModal && (
+              <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
+                  <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Nurturing — {nurtureModal.company?.name}</div>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Razão</label>
+                    <select value={nurtureForm.reason} onChange={e => setNurtureForm(f => ({ ...f, reason: e.target.value }))}
+                      style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }}>
+                      <option value="">Seleciona...</option>
+                      {NURTURE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Notas adicionais</label>
+                    <textarea value={nurtureForm.notes} onChange={e => setNurtureForm(f => ({ ...f, notes: e.target.value }))} rows={3}
+                      placeholder="Ex: Contrato atual termina em Setembro, voltar a contactar em Agosto..."
+                      style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
+                  </div>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Data de próximo contacto</label>
+                    <input type="date" value={nurtureForm.nextContactDate} onChange={e => setNurtureForm(f => ({ ...f, nextContactDate: e.target.value }))}
+                      style={{ background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                    <button onClick={() => setNurtureModal(null)}
+                      style={{ background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+                    <button onClick={async () => {
+                        await fetch(API + '/api/leads/' + nurtureModal.id + '/status', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'NURTURING', nurtureReason: nurtureForm.reason, nurtureNotes: nurtureForm.notes, nextContactDate: nurtureForm.nextContactDate }),
+                        });
+                        setNurtureModal(null); load();
+                      }}
+                      style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          );
+        })()}
 
         {!loading && tab === 'scoring' && (
           <div style={{ marginTop: '20px' }}>
