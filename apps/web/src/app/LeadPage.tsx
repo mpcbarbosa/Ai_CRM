@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 const API = 'https://ai-crm-api-pcdn.onrender.com';
 const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', DISCARDED: '#7f1d1d' };
 const STAGE_COLORS: Record<string,string> = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
-const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK'];
-const ACTIVITY_ICONS: Record<string,string> = { CALL: 'Tel', EMAIL: 'Email', MEETING: 'Meet', NOTE: 'Nota', TASK: 'Task' };
+const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK', 'LINKEDIN_INMAIL', 'LINKEDIN_MESSAGE'];
+const ACTIVITY_ICONS: Record<string,string> = { CALL: 'Tel', EMAIL: 'Email', MEETING: 'Meet', NOTE: 'Nota', TASK: 'Task', LINKEDIN_INMAIL: 'InMail', LINKEDIN_MESSAGE: 'LinkedIn' };
 
 const tabStyle = (active: boolean) => ({
   padding: '10px 20px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
@@ -437,7 +437,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                     style={{ ...inputStyle, marginBottom: '6px' }} />
                   <input placeholder="Telefone" value={newContact.phone} onChange={e => setNewContact(c => ({ ...c, phone: e.target.value }))}
                     style={{ ...inputStyle, marginBottom: '6px' }} />
-                  <input placeholder="LinkedIn URL" value={newContact.linkedin} onChange={e => setNewContact(c => ({ ...c, linkedin: e.target.value }))}
+                  <input placeholder="LinkedIn (URL ou username)" value={newContact.linkedin} onChange={e => setNewContact(c => ({ ...c, linkedin: e.target.value }))}
                     style={{ ...inputStyle, marginBottom: '10px' }} />
                   <button onClick={saveContact} disabled={saving || !newContact.name.trim()}
                     style={{ background: saving || !newContact.name.trim() ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
@@ -458,7 +458,7 @@ export default function LeadPage({ leadId }: { leadId: string }) {
                   {ct.role && <div style={{ color: '#60a5fa', fontSize: '12px' }}>{ct.role}{ct.seniority ? ` · ${ct.seniority}` : ''}</div>}
                   {ct.email && <div><a href={'mailto:' + ct.email} style={{ color: '#7c3aed', fontSize: '12px' }}>{ct.email}</a></div>}
                   {ct.phone && <div style={{ color: '#94a3b8', fontSize: '12px' }}>{ct.phone}</div>}
-                  {ct.linkedin && <div><a href={ct.linkedin} target="_blank" style={{ color: '#64748b', fontSize: '11px' }}>LinkedIn →</a></div>}
+                  {ct.linkedin && <div style={{ marginTop: '4px' }}><a href={ct.linkedin.startsWith('http') ? ct.linkedin : 'https://linkedin.com/in/' + ct.linkedin} target="_blank" style={{ color: '#0a66c2', fontSize: '12px', fontWeight: 600 }}>🔗 LinkedIn →</a></div>}
                   <div style={{ marginTop: '6px' }}>
                     {ct.sourceAgent === 'Apollo' && <span style={{ color: '#f59e0b', fontSize: '10px' }}>✦ Apollo</span>}
                     {ct.sourceAgent === 'Manual' && <span style={{ color: '#475569', fontSize: '10px' }}>✎ Manual</span>}
@@ -524,7 +524,12 @@ export default function LeadPage({ leadId }: { leadId: string }) {
               <div style={{ color: '#475569', textAlign: 'center', padding: '40px' }}>Sem atividades</div>
             ) : lead.activities.map((a: any) => (
               <div key={a.id} style={{ ...card, marginBottom: '12px', display: 'flex', gap: '16px' }}>
-                <div style={{ fontSize: '24px' }}>{(ACTIVITY_ICONS as any)[a.type] || 'Act'}</div>
+                <div style={{ 
+                  fontSize: '12px', fontWeight: 700, padding: '6px 10px', borderRadius: '8px', minWidth: '52px', textAlign: 'center',
+                  background: a.type.startsWith('LINKEDIN') ? '#0a66c222' : '#1e293b',
+                  color: a.type.startsWith('LINKEDIN') ? '#0a66c2' : '#64748b',
+                  border: a.type.startsWith('LINKEDIN') ? '1px solid #0a66c244' : '1px solid #334155'
+                }}>{(ACTIVITY_ICONS as any)[a.type] || 'Act'}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{a.title}</div>
                   {a.notes && <div style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px' }}>{a.notes}</div>}

@@ -94,6 +94,8 @@ enum ActivityType {
   MEETING
   NOTE
   TASK
+  LINKEDIN_INMAIL
+  LINKEDIN_MESSAGE
 }
 
 model Activity {
