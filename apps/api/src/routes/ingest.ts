@@ -289,14 +289,17 @@ export async function ingestRoutes(app: FastifyInstance) {
     if (gobiiToken) {
       const qry = req.query as Record<string, string>;
       const bd = req.body as Record<string, unknown>;
-      const provided = (req.headers['x-gobii-token'] as string)
-        || (req.headers['x-webhook-token'] as string)
-        || (req.headers['authorization'] as string)?.replace('Bearer ', '')
-        || qry.secret
-        || qry.token
-        || String(bd?.webhookSecret || bd?.secret || '');
-      if (provided !== gobiiToken) {
-        logger.warn({ provided }, 'Unauthorized webhook attempt');
+      const candidates = [
+        req.headers['x-gobii-token'] as string,
+        req.headers['x-webhook-token'] as string,
+        (req.headers['authorization'] as string)?.replace(/^Bearer\s+/i, ''),
+        qry.secret, qry.token, qry.key,
+        String(bd?.webhookSecret || ''), String(bd?.secret || ''),
+        String(bd?.token || ''), String(bd?.key || ''),
+      ];
+      const match = candidates.find(c => c && c.trim() === gobiiToken.trim());
+      if (!match) {
+        logger.warn({ first: (candidates.find(c => c && c.length > 5) || '').substring(0, 20) }, 'Unauthorized webhook attempt');
         return reply.status(401).send({ error: 'Unauthorized' });
       }
     }

@@ -27,9 +27,20 @@ app.addContentTypeParser('text/plain', { parseAs: 'string' }, (req, body, done) 
 
 app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (req, body, done) => {
   try {
+    // Try JSON first
     done(null, JSON.parse(body as string));
-  } catch (e) {
-    done(null, body);
+  } catch {
+    try {
+      // Parse as form-urlencoded key=value&key2=value2
+      const parsed: Record<string, string> = {};
+      (body as string).split('&').forEach(pair => {
+        const [k, v] = pair.split('=');
+        if (k) parsed[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+      done(null, parsed);
+    } catch {
+      done(null, {});
+    }
   }
 });
 
