@@ -327,13 +327,13 @@ export default function LeadPage({ leadId }: { leadId: string }) {
           {['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'NURTURING', 'DISCARDED'].filter(s => s !== lead.status).map((s: string) => (
               <button key={s} onClick={() => { if (s === 'NURTURING') { setNurtureForm({ reason: '', notes: '', nextContactDate: '' }); setShowNurtureModal(v => !v); } else changeStatus(s); }}
                 style={{ background: STATUS_COLORS[s] || '#475569', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
-                {s === 'UNDER_QUALIFICATION' ? 'Under Qualification' : s === 'DISCARDED' ? 'Descartar' : s === 'NURTURING' ? '🔄 Nurturing' : 'Mover para ' + s}
+                {s === 'UNDER_QUALIFICATION' ? 'Under Qualification' : s === 'DISCARDED' ? 'Descartar' : s === 'NURTURING' ? '🔄 Mover para Nurturing' : 'Mover para ' + s}
               </button>
             ))}
           </div>
         </div>
         {showNurtureModal && (
-          <div style={{ background: '#0e749022', border: '1px solid #0e7490', borderRadius: '12px', padding: '20px', margin: '0 32px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ background: '#0e749044', border: '2px solid #0e7490', borderRadius: '12px', padding: '20px', margin: '0 32px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <div style={{ fontWeight: 700, fontSize: '15px', color: '#0e7490' }}>🔄 Mover para Nurturing</div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
