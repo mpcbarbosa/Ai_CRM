@@ -698,47 +698,53 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   // POST /api/leads/erp-prospects/:signalId/migrate — promote ERP prospect to pipeline
   app.post('/api/leads/erp-prospects/:signalId/migrate', async (req, reply) => {
-    const { signalId } = req.params as { signalId: string };
-    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
-    const signal = await prisma.leadSignal.findUnique({ where: { id: signalId }, include: { company: true } });
-    if (!signal) return reply.status(404).send({ error: 'Signal not found' });
+    try {
+      const { signalId } = req.params as { signalId: string };
+      const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
+      const signal = await prisma.leadSignal.findUnique({ where: { id: signalId }, include: { company: true } });
+      if (!signal) return reply.status(404).send({ error: 'Signal not found' });
+      if (!signal.companyId) return reply.status(400).send({ error: 'Signal has no companyId' });
 
-    // Check if lead already exists
-    let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
-    const isNew = !lead;
-    if (!lead) {
-      lead = await prisma.lead.create({
+      // Check if lead already exists
+      let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+      const isNew = !lead;
+      if (!lead) {
+        lead = await prisma.lead.create({
+          data: {
+            companyId: signal.companyId,
+            status: 'NEW',
+            totalScore: signal.score_final || 0,
+            lastActivityDate: new Date(),
+          },
+        });
+      }
+
+      // Audit: who migrated and when
+      await prisma.auditLog.create({
         data: {
-          companyId: signal.companyId,
-          status: 'NEW',
-          totalScore: signal.score_final || 0,
-          lastActivityDate: new Date(),
+          leadId: lead.id,
+          userName,
+          action: 'LEAD_CREATED',
+          details: {
+            source: 'LORENA_LEE_PROSPECT',
+            description: isNew ? 'Migrado para Pipeline' : 'Adicionado ao Pipeline (já existia)',
+            migratedFrom: signalId,
+            migratedAt: new Date().toISOString(),
+          } as any,
         },
       });
+
+      // Change triggerType so it shows in pipeline
+      await prisma.leadSignal.update({
+        where: { id: signalId },
+        data: { triggerType: 'LEAD_SCAN' },
+      });
+
+      return reply.send({ ok: true, lead });
+    } catch (err: any) {
+      console.error('migrate error:', err);
+      return reply.status(500).send({ error: err.message });
     }
-
-    // Audit: who migrated and when
-    await prisma.auditLog.create({
-      data: {
-        leadId: lead.id,
-        userName,
-        action: 'LEAD_CREATED',
-        details: {
-          source: 'LORENA_LEE_PROSPECT',
-          action: isNew ? 'Migrado para Pipeline' : 'Adicionado ao Pipeline (já existia)',
-          migratedFrom: signalId,
-          migratedAt: new Date().toISOString(),
-        },
-      },
-    });
-
-    // Change triggerType so it shows in pipeline
-    await prisma.leadSignal.update({
-      where: { id: signalId },
-      data: { triggerType: 'LEAD_SCAN' },
-    });
-
-    return reply.send({ ok: true, lead });
   });
 
   // POST /api/leads/erp-prospects/:signalId/discard — discard ERP prospect
