@@ -436,7 +436,7 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
               <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; const inPipeline = s.lead && s.lead.id; return (
-                <tr key={s.id} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); markRead(s.id); setSelectedProspect(s); }}
+                <tr key={s.id} onClick={() => { sessionStorage.setItem('prospectScrollY', String(window.scrollY)); markRead(s.id); setSelectedProspect(s); }}
                   style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -478,7 +478,7 @@ export default function Dashboard() {
           const sources = Array.isArray(r.sources) ? r.sources : [];
           return (
           <div style={{ marginTop: '20px' }}>
-            <button onClick={() => { setSelectedProspect(null); }} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>← Voltar à lista</button>
+            <button onClick={() => { setSelectedProspect(null); requestAnimationFrame(() => requestAnimationFrame(() => { const y = sessionStorage.getItem('prospectScrollY'); if (y) { window.scrollTo({ top: Number(y), behavior: 'instant' }); sessionStorage.removeItem('prospectScrollY'); } })); }} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>← Voltar à lista</button>
             <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
