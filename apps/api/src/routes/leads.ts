@@ -324,12 +324,15 @@ export async function leadsRoutes(app: FastifyInstance) {
 
   app.get('/api/signals', async (req, reply) => {
     const query = req.query as Record<string, string>;
-    const where = query.triggerType ? { triggerType: query.triggerType } : {};
+    const EXCLUDED = ['ERP_PROSPECT', 'ERP_PROSPECT_DISCARDED'];
+    const where = query.triggerType
+      ? { triggerType: query.triggerType }
+      : { triggerType: { notIn: EXCLUDED } };
     const signals = await prisma.leadSignal.findMany({
       where,
       include: { company: true },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: 1000,
     });
     return reply.send(signals);
   });
@@ -667,15 +670,14 @@ export async function leadsRoutes(app: FastifyInstance) {
   // GET /api/leads/erp-prospects — Lorena Lee prospects pending pipeline migration
   app.get('/api/leads/erp-prospects', async (req, reply) => {
     const signals = await prisma.leadSignal.findMany({
-      where: { triggerType: { in: ['ERP_PROSPECT'] } },
+      where: { triggerType: 'ERP_PROSPECT' },
       orderBy: { createdAt: 'desc' },
       include: { company: true },
     });
-    // Return with lead info if exists
-    const results = await Promise.all(signals.map(async (s: any) => {
-      const lead = await prisma.lead.findUnique({ where: { companyId: s.companyId } });
-      return { ...s, lead };
-    }));
+    // Only show as "in pipeline" if this specific signal was migrated (triggerType changed)
+    // Since we filter by ERP_PROSPECT, none of these have been migrated yet
+    // lead field is null for all — migration moves them OUT of this list
+    const results = signals.map((s: any) => ({ ...s, lead: null }));
     return reply.send(results);
   });
 

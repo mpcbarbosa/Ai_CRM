@@ -115,7 +115,7 @@ export default function Dashboard() {
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
-  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Leads', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
+  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Prospects', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
   async function migrateEmploymentToPipeline(signal: any) {
@@ -403,12 +403,9 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!loading && tab === 'lorena' && (
+        {!loading && tab === 'lorena' && !selectedProspect && (
           <div style={{ marginTop: '20px' }}>
-            <div style={{ background: '#1e293b', borderRadius: '8px', padding: '14px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Leads identificados pela Lorena Lee — empresas PT com receita &gt;5M€ a avaliar substituição de ERP. Clica <b style={{color:'#f8fafc'}}>Migrar</b> para mover para o Pipeline.</span>
-            </div>
-            {erpProspects.length === 0 ? <EmptyState msg="Sem prospects da Lorena Lee. Configura o webhook para começar a receber dados." /> : (
+            {erpProspects.length === 0 ? <EmptyState msg="Sem prospects da Lorena Lee. Aguarda o próximo envio do agente." /> : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead><tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th>
@@ -416,32 +413,34 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>ERP Atual</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Revenue</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Resumo / Fit</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Score</th>
+                <th style={{ padding: '12px 16px', textAlign: 'left' }}>Fit</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Data</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
-              <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; return (
-                <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || 'PT'}</td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
+              <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; const inPipeline = s.lead && s.lead.id; return (
+                <tr key={s.id} onClick={() => setSelectedProspect(s)}
+                  style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.company_name || r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.country || r.pais || s.company?.country || 'PT'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.sector || r.setor || s.company?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', fontSize: '12px' }}>
-                    <span style={{ color: '#fb923c' }}>{r.erp_atual || r.current_erp_vendor || '-'}</span>
+                    <span style={{ color: '#fb923c' }}>{r.erp_atual || r.current_erp_vendor || r.current_erp_product || '-'}</span>
                     {r.erp_confidence && <span style={{ marginLeft: '6px', color: '#475569', fontSize: '10px' }}>({r.erp_confidence})</span>}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '12px' }}>
                     {r.revenue_eur ? <span style={{ color: '#4ade80', fontWeight: 700 }}>€{Number(r.revenue_eur).toLocaleString('pt-PT')}</span> : <span style={{ color: '#475569' }}>{r.revenue_range_eur || r.revenue_status || '-'}</span>}
                   </td>
-                  <td style={{ padding: '12px 16px', maxWidth: '240px', fontSize: '12px' }}>
-                    <div style={{ color: '#94a3b8' }}>{s.summary || r.resumo || r.why_now || '-'}</div>
-                    {r.fit_for_s4hana && <span style={{ fontSize: '10px', color: r.fit_for_s4hana === 'high' ? '#4ade80' : r.fit_for_s4hana === 'medium' ? '#f59e0b' : '#475569', fontWeight: 700 }}>S/4HANA fit: {r.fit_for_s4hana}</span>}
-                  </td>
                   <td style={{ padding: '12px 16px' }}><ScoreBar score={s.score_final || r.lead_score || 0} /></td>
-                  <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
                   <td style={{ padding: '12px 16px' }}>
-                    {s.lead
-                      ? <span style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700 }}>✓ No Pipeline</span>
+                    {r.fit_for_s4hana && <span style={{ fontSize: '11px', color: r.fit_for_s4hana === 'high' ? '#4ade80' : r.fit_for_s4hana === 'medium' ? '#f59e0b' : '#475569', fontWeight: 700 }}>{r.fit_for_s4hana}</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                    {inPipeline
+                      ? <span onClick={() => router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✓ Pipeline →</span>
                       : <button onClick={() => migrateToPipeline(s.id)} disabled={migratingId === s.id}
                           style={{ background: migratingId === s.id ? '#334155' : '#7c3aed', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
                           {migratingId === s.id ? '...' : 'Migrar →'}
@@ -452,6 +451,108 @@ export default function Dashboard() {
             </table>)}
           </div>
         )}
+
+        {!loading && tab === 'lorena' && selectedProspect && (() => {
+          const s = selectedProspect;
+          const r = s.rawData || {};
+          const inPipeline = s.lead && s.lead.id;
+          const signals = Array.isArray(r.buying_signals) ? r.buying_signals : [];
+          const evidence = Array.isArray(r.erp_evidence) ? r.erp_evidence : [];
+          const sources = Array.isArray(r.sources) ? r.sources : [];
+          return (
+          <div style={{ marginTop: '20px' }}>
+            <button onClick={() => setSelectedProspect(null)} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: '13px', marginBottom: '16px' }}>← Voltar à lista</button>
+            <div style={{ background: '#1e293b', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: 800 }}>{r.company_name || r.empresa || s.company?.name || '-'}</div>
+                  <div style={{ color: '#64748b', fontSize: '13px', marginTop: '4px' }}>{[r.headquarters_city, r.country || r.pais || 'PT', r.sector || r.setor].filter(Boolean).join(' · ')}</div>
+                  {r.domain && <a href={'https://' + r.domain} target="_blank" style={{ color: '#7c3aed', fontSize: '12px' }}>{r.domain}</a>}
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {inPipeline
+                    ? <span onClick={() => router.push('/leads/' + s.lead.id)} style={{ color: '#4ade80', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>✓ Já no Pipeline — Ver Lead →</span>
+                    : <>
+                        <button onClick={() => migrateToPipeline(s.id)} disabled={migratingId === s.id}
+                          style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                          {migratingId === s.id ? '...' : '🚀 Mover para Pipeline'}
+                        </button>
+                        <button onClick={async () => {
+                            await fetch(API + '/api/leads/erp-prospects/' + s.id + '/discard', { method: 'POST' });
+                            setSelectedProspect(null); load();
+                          }}
+                          style={{ background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                          Descartar
+                        </button>
+                      </>}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { label: 'Revenue', value: r.revenue_eur ? '€' + Number(r.revenue_eur).toLocaleString('pt-PT') : r.revenue_range_eur || '-', color: '#4ade80' },
+                { label: 'Revenue Status', value: r.revenue_status || '-', color: '#f8fafc' },
+                { label: 'ERP Atual', value: [r.current_erp_vendor, r.current_erp_product].filter(Boolean).join(' / ') || r.erp_atual || '-', color: '#fb923c' },
+                { label: 'ERP Confidence', value: r.erp_confidence || '-', color: '#f8fafc' },
+                { label: 'Funcionários', value: r.employee_range || '-', color: '#f8fafc' },
+                { label: 'Fit S/4HANA', value: r.fit_for_s4hana || '-', color: r.fit_for_s4hana === 'high' ? '#4ade80' : r.fit_for_s4hana === 'medium' ? '#f59e0b' : '#475569' },
+                { label: 'Score', value: String(r.lead_score || s.score_final || 0), color: '#a78bfa' },
+                { label: 'Próxima Ação', value: r.recommended_next_action || '-', color: '#60a5fa' },
+                { label: 'Contacto', value: r.primary_contact_hint || '-', color: '#f8fafc' },
+              ].map(kv => (
+                <div key={kv.label} style={{ background: '#1e293b', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ fontSize: '10px', color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>{kv.label}</div>
+                  <div style={{ color: kv.color, fontWeight: 700, fontSize: '13px' }}>{kv.value}</div>
+                </div>
+              ))}
+            </div>
+            {(s.summary || r.why_now) && (
+              <div style={{ background: '#1e293b', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', marginBottom: '8px' }}>Why Now</div>
+                <div style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.6' }}>{r.why_now || s.summary}</div>
+                {r.notes && <div style={{ color: '#64748b', fontSize: '12px', marginTop: '8px', fontStyle: 'italic' }}>{r.notes}</div>}
+              </div>
+            )}
+            {signals.length > 0 && (
+              <div style={{ background: '#1e293b', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', marginBottom: '12px' }}>Buying Signals</div>
+                {signals.map((sig: any, i: number) => (
+                  <div key={i} style={{ borderBottom: '1px solid #0f172a', paddingBottom: '10px', marginBottom: '10px' }}>
+                    <span style={{ background: '#7c3aed22', color: '#a78bfa', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>{sig.signal_type}</span>
+                    <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '6px' }}>{sig.details}</div>
+                    {sig.url && <a href={sig.url} target="_blank" style={{ color: '#7c3aed', fontSize: '11px' }}>Ver fonte</a>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {evidence.length > 0 && (
+              <div style={{ background: '#1e293b', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', marginBottom: '12px' }}>Evidência ERP</div>
+                {evidence.map((ev: any, i: number) => (
+                  <div key={i} style={{ borderBottom: '1px solid #0f172a', paddingBottom: '10px', marginBottom: '10px' }}>
+                    <span style={{ background: '#fb923c22', color: '#fb923c', fontSize: '10px', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>{ev.type}</span>
+                    <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '6px', fontStyle: 'italic' }}>"{ev.excerpt}"</div>
+                    {ev.url && <a href={ev.url} target="_blank" style={{ color: '#7c3aed', fontSize: '11px' }}>Ver fonte</a>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {sources.length > 0 && (
+              <div style={{ background: '#1e293b', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#475569', textTransform: 'uppercase', marginBottom: '12px' }}>Fontes</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {sources.map((src: any, i: number) => (
+                    <a key={i} href={src.url} target="_blank"
+                      style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '4px 12px', color: '#64748b', fontSize: '11px', textDecoration: 'none' }}>
+                      {src.type || 'fonte'} ↗
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          );
+        })()}
 
         {!loading && tab === 'employment' && (
           <div style={{ marginTop: '20px' }}>
