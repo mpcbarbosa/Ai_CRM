@@ -667,7 +667,7 @@ export async function leadsRoutes(app: FastifyInstance) {
   // GET /api/leads/erp-prospects — Lorena Lee prospects pending pipeline migration
   app.get('/api/leads/erp-prospects', async (req, reply) => {
     const signals = await prisma.leadSignal.findMany({
-      where: { triggerType: 'ERP_PROSPECT' },
+      where: { triggerType: { in: ['ERP_PROSPECT'] } },
       orderBy: { createdAt: 'desc' },
       include: { company: true },
     });
@@ -697,11 +697,13 @@ export async function leadsRoutes(app: FastifyInstance) {
   // POST /api/leads/erp-prospects/:signalId/migrate — promote ERP prospect to pipeline
   app.post('/api/leads/erp-prospects/:signalId/migrate', async (req, reply) => {
     const { signalId } = req.params as { signalId: string };
+    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
     const signal = await prisma.leadSignal.findUnique({ where: { id: signalId }, include: { company: true } });
     if (!signal) return reply.status(404).send({ error: 'Signal not found' });
 
     // Check if lead already exists
     let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+    const isNew = !lead;
     if (!lead) {
       lead = await prisma.lead.create({
         data: {
@@ -711,15 +713,22 @@ export async function leadsRoutes(app: FastifyInstance) {
           lastActivityDate: new Date(),
         },
       });
-      await prisma.auditLog.create({
-        data: {
-          leadId: lead.id,
-          userName: 'Lorena Lee → Pipeline',
-          action: 'LEAD_CREATED',
-          details: { source: 'ERP_PROSPECT', migratedFrom: signalId },
-        },
-      });
     }
+
+    // Audit: who migrated and when
+    await prisma.auditLog.create({
+      data: {
+        leadId: lead.id,
+        userName,
+        action: 'LEAD_CREATED',
+        details: {
+          source: 'LORENA_LEE_PROSPECT',
+          action: isNew ? 'Migrado para Pipeline' : 'Adicionado ao Pipeline (já existia)',
+          migratedFrom: signalId,
+          migratedAt: new Date().toISOString(),
+        },
+      },
+    });
 
     // Change triggerType so it shows in pipeline
     await prisma.leadSignal.update({
@@ -728,6 +737,17 @@ export async function leadsRoutes(app: FastifyInstance) {
     });
 
     return reply.send({ ok: true, lead });
+  });
+
+  // POST /api/leads/erp-prospects/:signalId/discard — discard ERP prospect
+  app.post('/api/leads/erp-prospects/:signalId/discard', async (req, reply) => {
+    const { signalId } = req.params as { signalId: string };
+    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
+    await prisma.leadSignal.update({
+      where: { id: signalId },
+      data: { triggerType: 'ERP_PROSPECT_DISCARDED' },
+    });
+    return reply.send({ ok: true });
   });
 
 

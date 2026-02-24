@@ -55,6 +55,7 @@ export default function Dashboard() {
   const [employment, setEmployment] = useState<any[]>([]);
   const [migratingId, setMigratingId] = useState<string | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const [selectedProspect, setSelectedProspect] = useState<any | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -114,7 +115,7 @@ export default function Dashboard() {
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
-  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Lorena / ERP', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
+  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Leads', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
   async function migrateEmploymentToPipeline(signal: any) {
@@ -139,10 +140,14 @@ export default function Dashboard() {
     load();
   }
 
-  async function migrateToPipeline(signalId: string) {
+  async function migrateToPipeline(signalId: string, userName = 'Utilizador') {
     setMigratingId(signalId);
-    await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', { method: 'POST' });
+    await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+    });
     setMigratingId(null);
+    setSelectedProspect(null);
     load();
   }
 
