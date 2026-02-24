@@ -331,10 +331,10 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{clevels.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma alteracao C-Level." /></td></tr> : clevels.map((s: any) => { const r = s.rawData || {}; return (
                 <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.nome_pessoa || '-'}</td><td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.cargo || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{r.impacto_erp || r.impacto_ERP || s.summary || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{s.sourceUrl?.startsWith('http') ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
                 </tr>);})}
@@ -377,10 +377,10 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{expansions.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma expansao." /></td></tr> : expansions.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => lead && router.push('/leads/' + lead.id)}>{r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}>{r.impacto_erp || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => lead && router.push('/leads/' + lead.id)}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || (r.company as any)?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || (r.company as any)?.sector || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || r.trigger || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{r.impacto_erp || r.impacto_ERP || s.summary || '-'}</td>
                   <td style={{ padding: '12px 16px' }}><ProbBadge value={r.probabilidade_erp || ''} /></td>
                   <td style={{ padding: '12px 16px' }}>{s.sourceUrl?.startsWith('http') ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>Ver fonte</a> : '-'}</td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.detectedAt || s.createdAt} /></td>
@@ -466,9 +466,9 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{employment.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || (r.company as any)?.country || '-'}</td>
+                  <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || (r.company as any)?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '300px', fontSize: '12px' }}>{s.summary || r.resumo || r.titulo || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{s.sourceUrl ? <a href={s.sourceUrl} target="_blank" style={{ color: '#7c3aed' }}>Ver fonte</a> : '-'}</td>
                   <td style={{ padding: '12px 16px' }}><DateCell date={s.createdAt} /></td>
