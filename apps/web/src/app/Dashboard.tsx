@@ -46,7 +46,8 @@ const inputStyle = { background: '#1e293b', border: '1px solid #334155', borderR
 
 export default function Dashboard() {
   const router = useRouter();
-  const [tab, setTab] = useState('pipeline');
+  const [tab, setTab] = useState<string>(() => sessionStorage.getItem('activeTab') || 'pipeline');
+  const setTabAndSave = (t: string) => { setTab(t); sessionStorage.setItem('activeTab', t); };
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
   const [leads, setLeads] = useState<any[]>([]);
   const [signals, setSignals] = useState<any[]>([]);
