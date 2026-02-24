@@ -117,6 +117,7 @@ export default function Dashboard() {
   const filteredLeads = useMemo(() => {
     let r = [...leads];
     if (hideDiscarded) r = r.filter(l => l.status !== 'DISCARDED');
+    r = r.filter(l => l.status !== 'NURTURING');
     if (search) { const q = search.toLowerCase(); r = r.filter(l => l.company?.name?.toLowerCase().includes(q) || l.company?.sector?.toLowerCase().includes(q) || l.company?.country?.toLowerCase().includes(q)); }
     if (filterStatus) r = r.filter(l => l.status === filterStatus);
     if (filterSector) r = r.filter(l => l.company?.sector === filterSector);
