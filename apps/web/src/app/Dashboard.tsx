@@ -60,6 +60,7 @@ export default function Dashboard() {
   const [nurtureForm, setNurtureForm] = useState({ reason: '', notes: '', nextContactDate: '' });
   const [migratingId, setMigratingId] = useState<string | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const [hideDiscarded, setHideDiscarded] = useState<boolean>(() => localStorage.getItem('hideDiscarded') !== 'false');
   const [readIds, setReadIds] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('crm_read_ids') || '[]')); } catch { return new Set(); }
   });
@@ -115,6 +116,7 @@ export default function Dashboard() {
 
   const filteredLeads = useMemo(() => {
     let r = [...leads];
+    if (hideDiscarded) r = r.filter(l => l.status !== 'DISCARDED');
     if (search) { const q = search.toLowerCase(); r = r.filter(l => l.company?.name?.toLowerCase().includes(q) || l.company?.sector?.toLowerCase().includes(q) || l.company?.country?.toLowerCase().includes(q)); }
     if (filterStatus) r = r.filter(l => l.status === filterStatus);
     if (filterSector) r = r.filter(l => l.company?.sector === filterSector);
@@ -131,7 +133,7 @@ export default function Dashboard() {
       return 0;
     });
     return r;
-  }, [leads, search, filterStatus, filterSector, filterAgent, filterScoreMin, sortBy, sortDir]);
+  }, [leads, search, filterStatus, filterSector, filterAgent, filterScoreMin, sortBy, sortDir, hideDiscarded]);
 
   const stats = useMemo(() => ({ total: leads.length, mql: leads.filter((l: any) => l.status === 'MQL').length, sql: leads.filter((l: any) => l.status === 'SQL').length, filtered: filteredLeads.length }), [leads, filteredLeads]);
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
@@ -260,6 +262,10 @@ export default function Dashboard() {
                   <button onClick={() => setViewMode('kanban')} style={{ background: viewMode === 'kanban' ? '#7c3aed' : '#0f172a', color: viewMode === 'kanban' ? 'white' : '#64748b', border: 'none', padding: '6px 12px', cursor: 'pointer', fontSize: '13px' }}>Kanban</button>
                 </div>
                 {hasFilters && <button onClick={clearFilters} style={{ background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}>Limpar</button>}
+                <button onClick={() => { const v = !hideDiscarded; setHideDiscarded(v); localStorage.setItem('hideDiscarded', String(v)); }}
+                  style={{ background: hideDiscarded ? '#1e293b' : '#7f1d1d22', color: hideDiscarded ? '#64748b' : '#ef4444', border: '1px solid ' + (hideDiscarded ? '#334155' : '#ef444444'), padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {hideDiscarded ? '🚫 Ocultar Descartados' : '👁 Mostrar Descartados'}
+                </button>
               </div>
             </div>
             <div style={{ marginTop: '10px', fontSize: '12px', color: '#475569' }}>
