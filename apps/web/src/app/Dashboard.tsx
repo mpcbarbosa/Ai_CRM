@@ -31,8 +31,9 @@ function ProbBadge({ value }: { value: string }) {
   return <span style={{ background: high ? '#15803d' : med ? '#1d4ed8' : '#475569', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>{value || '-'}</span>;
 }
 function isNew(dateStr: string) { return new Date().getTime() - new Date(dateStr).getTime() < 48 * 60 * 60 * 1000; }
-function NewBadge({ date }: { date: string }) {
+function NewBadge({ date, id, readIds }: { date: string, id?: string, readIds?: Set<string> }) {
   if (!isNew(date)) return null;
+  if (id && readIds?.has(id)) return <span style={{ background: '#334155', color: '#64748b', padding: '1px 6px', borderRadius: '8px', fontSize: '10px', fontWeight: 700, marginLeft: '6px' }}>LIDO</span>;
   return <span style={{ background: '#7c3aed', color: 'white', padding: '1px 6px', borderRadius: '8px', fontSize: '10px', fontWeight: 700, marginLeft: '6px' }}>NOVO</span>;
 }
 function DateCell({ date }: { date: string }) {
@@ -55,6 +56,17 @@ export default function Dashboard() {
   const [employment, setEmployment] = useState<any[]>([]);
   const [migratingId, setMigratingId] = useState<string | null>(null);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('crm_read_ids') || '[]')); } catch { return new Set(); }
+  });
+  const markRead = (id: string) => {
+    setReadIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      try { localStorage.setItem('crm_read_ids', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
   const [selectedProspect, setSelectedProspect] = useState<any | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -264,8 +276,8 @@ export default function Dashboard() {
                     onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <td style={{ padding: '12px 16px', fontWeight: 600, cursor: 'pointer' }}
-                      onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>
-                      {lead.company?.name || '-'}<NewBadge date={lead.createdAt} />
+                      onClick={() => { markRead(lead.id); sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>
+                      {lead.company?.name || '-'}<NewBadge date={lead.createdAt} id={lead.id} readIds={readIds} />
                     </td>
                     <td style={{ padding: '12px 16px', color: '#94a3b8', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>{lead.company?.sector || '-'}</td>
                     <td style={{ padding: '12px 16px', cursor: 'pointer' }} onClick={() => { sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}><ScoreBar score={lead.totalScore} /></td>
@@ -314,7 +326,7 @@ export default function Dashboard() {
                         style={{ background: '#0f172a', borderRadius: '8px', padding: '12px', cursor: 'grab', border: '1px solid #334155', opacity: dragging === lead.id ? 0.5 : 1 }}
                         onMouseEnter={e => (e.currentTarget.style.borderColor = '#7c3aed')}
                         onMouseLeave={e => (e.currentTarget.style.borderColor = '#334155')}>
-                        <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} /></div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '6px' }}>{lead.company?.name || '-'}<NewBadge date={lead.createdAt} id={lead.id} readIds={readIds} /></div>
                         <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>{[lead.company?.sector, lead.company?.country].filter(Boolean).join(' · ')}</div>
                         <ScoreBar score={lead.totalScore} />
                       </div>
@@ -336,7 +348,7 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{clevels.length === 0 ? <tr><td colSpan={8}><EmptyState msg="Nenhuma alteracao C-Level." /></td></tr> : clevels.map((s: any) => { const r = s.rawData || {}; return (
                 <tr key={s.id} onClick={() => { const l = leads.find(l => l.company?.id === s.companyId); if (l) router.push('/leads/' + l.id); }} style={{ cursor: 'pointer', borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.nome_pessoa || '-'}</td><td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.cargo || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.impacto_erp || r.impacto_ERP || s.summary || '-'}</td>
@@ -358,7 +370,7 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{rfps.length === 0 ? <tr><td colSpan={7}><EmptyState msg="Nenhum RFP." /></td></tr> : rfps.map((s: any) => { const r = s.rawData || {}; return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.entidade || r.empresa || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.entidade || r.empresa || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || 'PT'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '280px' }}>{r.descricao || r.titulo || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#4ade80' }}>{r.valor_estimado || '-'}</td>
@@ -382,7 +394,7 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{expansions.length === 0 ? <tr><td colSpan={9}><EmptyState msg="Nenhuma expansao." /></td></tr> : expansions.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }} onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => lead && router.push('/leads/' + lead.id)}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, cursor: lead ? 'pointer' : 'default' }} onClick={() => { if(lead) { markRead(lead.id); router.push('/leads/' + lead.id); } }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || (r.company as any)?.country || '-'}</td><td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || (r.company as any)?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#60a5fa', fontSize: '12px' }}>{r.tipo_expansao || r.trigger || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{r.impacto_erp || r.impacto_ERP || s.summary || '-'}</td>
@@ -419,11 +431,11 @@ export default function Dashboard() {
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Ação</th>
               </tr></thead>
               <tbody>{erpProspects.map((s: any) => { const r = s.rawData || {}; const inPipeline = s.lead && s.lead.id; return (
-                <tr key={s.id} onClick={() => setSelectedProspect(s)}
+                <tr key={s.id} onClick={() => { markRead(s.id); setSelectedProspect(s); }}
                   style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.company_name || r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.company_name || r.empresa || s.company?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.country || r.pais || s.company?.country || 'PT'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.sector || r.setor || s.company?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', fontSize: '12px' }}>
@@ -572,7 +584,7 @@ export default function Dashboard() {
               </tr></thead>
               <tbody>{employment.map((s: any) => { const r = s.rawData || {}; const lead = leads.find((l: any) => l.company?.id === s.companyId); return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} /></td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600 }}>{r.empresa || s.company?.name || (r.company as any)?.name || '-'}<NewBadge date={s.createdAt} id={s.id} readIds={readIds} /></td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.pais || s.company?.country || (r.company as any)?.country || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{r.setor || s.company?.sector || (r.company as any)?.sector || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#94a3b8', maxWidth: '300px', fontSize: '12px' }}>{s.summary || r.resumo || r.titulo || '-'}</td>
