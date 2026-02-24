@@ -299,7 +299,17 @@ export async function ingestRoutes(app: FastifyInstance) {
       ];
       const match = candidates.find(c => c && c.trim() === gobiiToken.trim());
       if (!match) {
-        logger.warn({ first: (candidates.find(c => c && c.length > 5) || '').substring(0, 20) }, 'Unauthorized webhook attempt');
+        const qryKeys = Object.keys(qry);
+        const hdrs = Object.keys(req.headers);
+        const bodyKeys = bd && typeof bd === 'object' ? Object.keys(bd) : [];
+        logger.warn({ 
+          first: (candidates.find(c => c && c.length > 5) || '').substring(0, 30),
+          queryKeys: qryKeys,
+          headerKeys: hdrs.filter(h => !['host','connection','user-agent','accept','content-length'].includes(h)),
+          bodyKeys,
+          url: req.url,
+          method: req.method,
+        }, 'Unauthorized webhook attempt');
         return reply.status(401).send({ error: 'Unauthorized' });
       }
     }
