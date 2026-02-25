@@ -17,6 +17,47 @@ function ScoreBar({ score }: { score: number }) {
         <div style={{ width: Math.min(s, 200) / 2 + '%', height: '100%', background: color, borderRadius: '2px' }} />
       </div>
     </div>
+
+    {/* Nurture Modal - global, outside tabs */}
+    {nurtureModal && (
+      <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
+          <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Nurturing — {nurtureModal.company?.name}</div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Razão</label>
+            <select value={nurtureForm.reason} onChange={e => setNurtureForm(f => ({ ...f, reason: e.target.value }))}
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }}>
+              <option value="">Seleciona...</option>
+              {NURTURE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Notas adicionais</label>
+            <textarea value={nurtureForm.notes} onChange={e => setNurtureForm(f => ({ ...f, notes: e.target.value }))} rows={3}
+              placeholder="Ex: Contrato atual termina em Setembro, voltar a contactar em Agosto..."
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Data de próximo contacto</label>
+            <input type="date" value={nurtureForm.nextContactDate} onChange={e => setNurtureForm(f => ({ ...f, nextContactDate: e.target.value }))}
+              style={{ background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setNurtureModal(null)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={async () => {
+                await fetch(API + '/api/leads/' + nurtureModal.id + '/status', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'NURTURING', nurtureReason: nurtureForm.reason, nurtureNotes: nurtureForm.notes, nextContactDate: nurtureForm.nextContactDate }),
+                });
+                setNurtureModal(null); load();
+              }}
+              style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
 function StatusBadge({ status }: { status: string }) {
@@ -677,46 +718,6 @@ export default function Dashboard() {
               })}</tbody>
             </table>)}
 
-            {/* Nurture Modal */}
-            {nurtureModal && (
-              <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
-                  <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Nurturing — {nurtureModal.company?.name}</div>
-                  <div style={{ marginBottom: '14px' }}>
-                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Razão</label>
-                    <select value={nurtureForm.reason} onChange={e => setNurtureForm(f => ({ ...f, reason: e.target.value }))}
-                      style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }}>
-                      <option value="">Seleciona...</option>
-                      {NURTURE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ marginBottom: '14px' }}>
-                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Notas adicionais</label>
-                    <textarea value={nurtureForm.notes} onChange={e => setNurtureForm(f => ({ ...f, notes: e.target.value }))} rows={3}
-                      placeholder="Ex: Contrato atual termina em Setembro, voltar a contactar em Agosto..."
-                      style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
-                  </div>
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Data de próximo contacto</label>
-                    <input type="date" value={nurtureForm.nextContactDate} onChange={e => setNurtureForm(f => ({ ...f, nextContactDate: e.target.value }))}
-                      style={{ background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }} />
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                    <button onClick={() => setNurtureModal(null)}
-                      style={{ background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-                    <button onClick={async () => {
-                        await fetch(API + '/api/leads/' + nurtureModal.id + '/status', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ status: 'NURTURING', nurtureReason: nurtureForm.reason, nurtureNotes: nurtureForm.notes, nextContactDate: nurtureForm.nextContactDate }),
-                        });
-                        setNurtureModal(null); load();
-                      }}
-                      style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
           );
         })()}
@@ -771,5 +772,46 @@ export default function Dashboard() {
         {loading && <div style={{ textAlign: 'center', padding: '60px', color: '#475569' }}>A carregar...</div>}
       </div>
     </div>
+
+    {/* Nurture Modal - global, outside tabs */}
+    {nurtureModal && (
+      <div style={{ position: 'fixed', inset: 0, background: '#00000088', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#1e293b', borderRadius: '12px', padding: '28px', width: '480px', maxWidth: '95vw' }}>
+          <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '20px' }}>🔄 Nurturing — {nurtureModal.company?.name}</div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Razão</label>
+            <select value={nurtureForm.reason} onChange={e => setNurtureForm(f => ({ ...f, reason: e.target.value }))}
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }}>
+              <option value="">Seleciona...</option>
+              {NURTURE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Notas adicionais</label>
+            <textarea value={nurtureForm.notes} onChange={e => setNurtureForm(f => ({ ...f, notes: e.target.value }))} rows={3}
+              placeholder="Ex: Contrato atual termina em Setembro, voltar a contactar em Agosto..."
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Data de próximo contacto</label>
+            <input type="date" value={nurtureForm.nextContactDate} onChange={e => setNurtureForm(f => ({ ...f, nextContactDate: e.target.value }))}
+              style={{ background: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '8px 12px', borderRadius: '6px', fontSize: '13px' }} />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setNurtureModal(null)}
+              style={{ background: 'transparent', border: '1px solid #334155', color: '#64748b', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={async () => {
+                await fetch(API + '/api/leads/' + nurtureModal.id + '/status', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'NURTURING', nurtureReason: nurtureForm.reason, nurtureNotes: nurtureForm.notes, nextContactDate: nurtureForm.nextContactDate }),
+                });
+                setNurtureModal(null); load();
+              }}
+              style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>Guardar</button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
