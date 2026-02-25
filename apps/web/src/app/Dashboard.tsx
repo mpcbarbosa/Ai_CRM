@@ -11,6 +11,7 @@ function ScoreBar({ score }: { score: number }) {
   const s = score || 0;
   const color = s >= 100 ? '#4ade80' : s >= 70 ? '#60a5fa' : '#475569';
   return (
+    <>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <span style={{ color, fontWeight: 700, fontSize: '13px', minWidth: '28px' }}>{s}</span>
       <div style={{ flex: 1, height: '4px', background: '#0f172a', borderRadius: '2px', minWidth: '60px' }}>
@@ -58,6 +59,7 @@ function ScoreBar({ score }: { score: number }) {
         </div>
       </div>
     )}
+    </>
   );
 }
 function StatusBadge({ status }: { status: string }) {
@@ -813,5 +815,6 @@ export default function Dashboard() {
         </div>
       </div>
     )}
+    </>
   );
 }
