@@ -17,7 +17,6 @@ function ScoreBar({ score }: { score: number }) {
       <div style={{ flex: 1, height: '4px', background: '#0f172a', borderRadius: '2px', minWidth: '60px' }}>
         <div style={{ width: Math.min(s, 200) / 2 + '%', height: '100%', background: color, borderRadius: '2px' }} />
       </div>
-    </div>
 
     {/* Nurture Modal - global, outside tabs */}
     {nurtureModal && (
@@ -59,7 +58,7 @@ function ScoreBar({ score }: { score: number }) {
         </div>
       </div>
     )}
-    </>
+    </div>
   );
 }
 function StatusBadge({ status }: { status: string }) {
@@ -773,7 +772,6 @@ export default function Dashboard() {
 
         {loading && <div style={{ textAlign: 'center', padding: '60px', color: '#475569' }}>A carregar...</div>}
       </div>
-    </div>
 
     {/* Nurture Modal - global, outside tabs */}
     {nurtureModal && (
@@ -815,6 +813,6 @@ export default function Dashboard() {
         </div>
       </div>
     )}
-    </>
+    </div>
   );
 }
