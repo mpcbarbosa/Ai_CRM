@@ -215,7 +215,13 @@ export default function Dashboard() {
       <div style={{ background: '#1e293b', borderBottom: '1px solid #334155', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px', fontWeight: 800 }}>Ai CRM</span>
         <span style={{ background: '#7c3aed', color: 'white', padding: '2px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>Gobii Intelligence</span>
-        <a href="/settings" style={{ marginLeft: 'auto', color: '#64748b', textDecoration: 'none', fontSize: '13px', padding: '6px 14px', border: '1px solid #334155', borderRadius: '8px' }}>Configuracoes</a>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <a href="/settings" style={{ color: '#64748b', textDecoration: 'none', fontSize: '13px', padding: '6px 14px', border: '1px solid #334155', borderRadius: '8px' }}>Configuracoes</a>
+          <button onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/login'; }}
+            style={{ color: '#64748b', background: 'transparent', fontSize: '13px', padding: '6px 14px', border: '1px solid #334155', borderRadius: '8px', cursor: 'pointer' }}>
+            Sair
+          </button>
+        </div>
       </div>
       <div style={{ padding: '32px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '32px' }}>
