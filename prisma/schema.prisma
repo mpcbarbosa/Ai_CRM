@@ -126,6 +126,7 @@ model Lead {
   tags                String[]   @default([])
   notes               String?
   lostReason          String?
+  priority            String     @default("NORMAL")
   nextContactDate     DateTime?
   nurtureReason       String?
   nurtureNotes        String?

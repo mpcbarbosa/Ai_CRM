@@ -175,6 +175,21 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.code(201).send(user);
   });
 
+
+  // PATCH /api/leads/:id/priority
+  app.patch('/api/leads/:id/priority', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { priority } = req.body as { priority: string };
+    if (!['NORMAL', 'ATTENTION', 'URGENT'].includes(priority)) {
+      return reply.code(400).send({ error: 'Invalid priority' });
+    }
+    const lead = await prisma.lead.update({
+      where: { id },
+      data: { priority },
+    });
+    return reply.code(200).send(lead);
+  });
+
   // PATCH /api/leads/:id/status with audit
     app.patch('/api/leads/:id/status', async (req, reply) => {
     const { id } = req.params as { id: string };

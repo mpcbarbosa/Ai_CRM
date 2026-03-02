@@ -287,6 +287,7 @@ export default function Dashboard() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '12px 8px', textAlign: 'center', width: '40px' }}>⚡</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('name')}>Empresa <SortIcon field="name" /></th>
                 <th style={{ padding: '12px 16px', textAlign: 'left' }}>Setor</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', cursor: 'pointer' }} onClick={() => toggleSort('score')}>Score <SortIcon field="score" /></th>
@@ -298,12 +299,24 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {filteredLeads.length === 0
-                ? <tr><td colSpan={7}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
+                ? <tr><td colSpan={8}><EmptyState msg="Nenhum lead encontrado com estes filtros." /></td></tr>
                 : filteredLeads.map((lead: any) => (
                   <tr key={lead.id}
                     style={{ borderBottom: '1px solid #1e293b' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ padding: '8px', textAlign: 'center', width: '40px' }} onClick={e => e.stopPropagation()}>
+                      <button
+                        title={lead.priority === 'URGENT' ? 'Urgente - clica para remover' : lead.priority === 'ATTENTION' ? 'Atenção - clica para urgente' : 'Normal - clica para atenção'}
+                        onClick={async () => {
+                          const next = lead.priority === 'NORMAL' ? 'ATTENTION' : lead.priority === 'ATTENTION' ? 'URGENT' : 'NORMAL';
+                          await fetch(API + '/api/leads/' + lead.id + '/priority', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority: next }) });
+                          load();
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', lineHeight: 1 }}>
+                        {lead.priority === 'URGENT' ? '🔴' : lead.priority === 'ATTENTION' ? '🟡' : '⚪'}
+                      </button>
+                    </td>
                     <td style={{ padding: '12px 16px', fontWeight: 600, cursor: 'pointer' }}
                       onClick={() => { markRead(lead.id); sessionStorage.setItem('pipelineScrollY', String(window.scrollY)); router.push('/leads/' + lead.id); }}>
                       {lead.company?.name || '-'}<NewBadge date={lead.createdAt} id={lead.id} readIds={readIds} />
