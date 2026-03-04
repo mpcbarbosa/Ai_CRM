@@ -44,10 +44,29 @@ interface NormalizedSignal {
   website?: string;
   country?: string;
   sector?: string;
+  subsector?: string;
   size?: string;
+  // New Company fields
+  legalName?: string;
+  nif?: string;
+  phone?: string;
+  email?: string;
+  street?: string;
+  postalCode?: string;
+  city?: string;
+  municipality?: string;
+  district?: string;
+  digitalMaturityScore?: number;
+  partOfGroup?: boolean;
+  parentCompany?: string;
+  numberOfSites?: number;
+  // Contact fields
   contactName?: string;
   contactEmail?: string;
   contactRole?: string;
+  contactDepartment?: string;
+  contactConfidence?: string;
+  contactLinkedin?: string;
   triggerType: string;
   summary?: string;
   sourceUrl?: string;
@@ -232,29 +251,60 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
       const sources = Array.isArray(r.sources) ? r.sources as any[] : [];
       const sourceUrl = String(sources[0]?.url || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.url : '') || '');
       const erpInfo = [r.current_erp_vendor, r.current_erp_product].filter(Boolean).join(' ');
+      // Map key_people first contact if available
+      const keyPeople = Array.isArray(r.key_people) ? r.key_people as any[] : [];
+      const primaryContact = keyPeople[0];
+      // identification block
+      const identification = (r.identification || {}) as Record<string, unknown>;
+      const address = (identification.address || {}) as Record<string, unknown>;
+      const generalContacts = (identification.general_contacts || {}) as Record<string, unknown>;
+      // business_profile block
+      const bizProfile = (r.business_profile || {}) as Record<string, unknown>;
+      const groupStruct = (bizProfile.group_structure || {}) as Record<string, unknown>;
+
       return {
-        companyName: String(r.company_name || ''),
-        domain: normalizeDomain(String(r.domain || ''), String(r.company_name || '')),
-        website: String(r.domain || ''),
-        country: String(r.country || 'PT'),
-        sector: String(r.sector || ''),
+        companyName: String(r.company_name || identification.trade_name || identification.legal_name || ''),
+        legalName: String(identification.legal_name || r.legal_name || ''),
+        nif: String(identification.nif || r.nif || ''),
+        domain: normalizeDomain(String(r.domain || identification.website || ''), String(r.company_name || '')),
+        website: String(r.domain || identification.website || ''),
+        country: String(r.country || address.country || 'PT'),
+        sector: String(r.sector || bizProfile.sector || ''),
+        subsector: String(bizProfile.subsector || r.subsector || ''),
         size: String(r.employee_range || ''),
+        phone: String(identification.phone || generalContacts.phone || ''),
+        email: String(identification.email || generalContacts.email || ''),
+        street: String(address.street || r.street || ''),
+        postalCode: String(address.postal_code || r.postal_code || ''),
+        city: String(address.city || r.headquarters_city || ''),
+        municipality: String(address.municipality || ''),
+        district: String(address.district || ''),
+        digitalMaturityScore: Number(r.digital_maturity_score || (r.digital_maturity as any)?.score_1_5 || 0) || undefined,
+        partOfGroup: Boolean(groupStruct.part_of_group || r.part_of_group) || undefined,
+        parentCompany: String(groupStruct.parent_company || r.parent_company || ''),
+        numberOfSites: Number(bizProfile.number_of_sites || r.number_of_sites || 0) || undefined,
+        contactName: String(primaryContact?.name || r.primary_contact_hint || ''),
+        contactRole: String(primaryContact?.role || ''),
+        contactEmail: String(primaryContact?.email_if_public || ''),
+        contactDepartment: String(primaryContact?.department || ''),
+        contactConfidence: String(primaryContact?.confidence || ''),
+        contactLinkedin: String(primaryContact?.linkedin_url || ''),
         summary: summary || String(r.notes || ''),
         sourceUrl,
         triggerType: 'ERP_PROSPECT' as string,
-        score_trigger: Number(r.lead_score || 0),
-        score_probability: Number(r.lead_score || 0),
-        score_final: Number(r.lead_score || 0),
+        score_trigger: Number(r.lead_score || (r.scoring as any)?.priority_score_0_100 || 0),
+        score_probability: Number(r.lead_score || (r.scoring as any)?.priority_score_0_100 || 0),
+        score_final: Number(r.lead_score || (r.scoring as any)?.priority_score_0_100 || 0),
         raw: {
           ...r,
           erp_atual: erpInfo || 'Desconhecido',
           resumo: summary,
-          headquarters_city: r.headquarters_city,
+          headquarters_city: r.headquarters_city || address.city,
           fit_for_s4hana: r.fit_for_s4hana,
-          revenue_eur: r.revenue_eur,
+          revenue_eur: r.revenue_eur || (bizProfile.estimated_revenue_eur as any)?.value,
           revenue_range_eur: r.revenue_range_eur,
           revenue_status: r.revenue_status,
-          recommended_next_action: r.recommended_next_action,
+          recommended_next_action: r.recommended_next_action || (r.company_specific_analysis as any)?.why_contact_now_pt,
           primary_contact_hint: r.primary_contact_hint,
         },
       };
@@ -353,10 +403,24 @@ export async function ingestRoutes(app: FastifyInstance) {
         // Only update company fields if agent provides non-empty values (never overwrite with empty)
         const companyUpdate: Record<string, any> = { updatedAt: new Date() };
         if (signal.companyName) companyUpdate.name = signal.companyName;
+        if (signal.legalName) companyUpdate.legalName = signal.legalName;
+        if (signal.nif) companyUpdate.nif = signal.nif;
         if (signal.website) companyUpdate.website = signal.website;
         if (signal.country) companyUpdate.country = signal.country;
         if (signal.sector) companyUpdate.sector = signal.sector;
+        if (signal.subsector) companyUpdate.subsector = signal.subsector;
         if (signal.size) companyUpdate.size = signal.size;
+        if (signal.phone) companyUpdate.phone = signal.phone;
+        if (signal.email) companyUpdate.email = signal.email;
+        if (signal.street) companyUpdate.street = signal.street;
+        if (signal.postalCode) companyUpdate.postalCode = signal.postalCode;
+        if (signal.city) companyUpdate.city = signal.city;
+        if (signal.municipality) companyUpdate.municipality = signal.municipality;
+        if (signal.district) companyUpdate.district = signal.district;
+        if (signal.digitalMaturityScore) companyUpdate.digitalMaturityScore = signal.digitalMaturityScore;
+        if (signal.partOfGroup !== undefined) companyUpdate.partOfGroup = signal.partOfGroup;
+        if (signal.parentCompany) companyUpdate.parentCompany = signal.parentCompany;
+        if (signal.numberOfSites) companyUpdate.numberOfSites = signal.numberOfSites;
 
         const company = await prisma.company.upsert({
           where: { domain: signal.domain },
@@ -364,10 +428,24 @@ export async function ingestRoutes(app: FastifyInstance) {
           create: {
             domain: signal.domain,
             name: signal.companyName,
+            legalName: signal.legalName || undefined,
+            nif: signal.nif || undefined,
             website: signal.website || undefined,
             country: signal.country || undefined,
             sector: signal.sector || undefined,
+            subsector: signal.subsector || undefined,
             size: signal.size || undefined,
+            phone: signal.phone || undefined,
+            email: signal.email || undefined,
+            street: signal.street || undefined,
+            postalCode: signal.postalCode || undefined,
+            city: signal.city || undefined,
+            municipality: signal.municipality || undefined,
+            district: signal.district || undefined,
+            digitalMaturityScore: signal.digitalMaturityScore || undefined,
+            partOfGroup: signal.partOfGroup || undefined,
+            parentCompany: signal.parentCompany || undefined,
+            numberOfSites: signal.numberOfSites || undefined,
           },
         });
 
@@ -383,6 +461,9 @@ export async function ingestRoutes(app: FastifyInstance) {
                 name: signal.contactName,
                 email: signal.contactEmail || undefined,
                 role: signal.contactRole || undefined,
+                department: signal.contactDepartment || undefined,
+                confidence: signal.contactConfidence || undefined,
+                linkedin: signal.contactLinkedin || undefined,
                 sourceAgent: agentName,
               },
             }).catch(() => {});
