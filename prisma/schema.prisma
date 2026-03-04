@@ -30,16 +30,34 @@ enum UserRole {
 model Company {
   id            String    @id @default(cuid())
   name          String
+  legalName     String?
+  nif           String?
   domain        String    @unique
   website       String?
   country       String?
   sector        String?
+  subsector     String?
   size          String?
   description   String?
   revenue       String?
   employeeCount Int?
+  numberOfSites Int?
   linkedinUrl   String?
+  phone         String?
+  email         String?
   technologies  String[]
+  // Address
+  street        String?
+  postalCode    String?
+  city          String?
+  municipality  String?
+  district      String?
+  // Digital maturity
+  digitalMaturityScore Int?
+  // Group structure
+  partOfGroup   Boolean?
+  parentCompany String?
+  // Enrichment
   enrichedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -54,9 +72,11 @@ model Contact {
   name          String
   email         String?
   role          String?
+  department    String?
   phone         String?
   linkedin      String?
   seniority     String?
+  confidence    String?
   sourceAgent   String?
   createdAt     DateTime      @default(now())
   company       Company       @relation(fields: [companyId], references: [id])
