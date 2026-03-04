@@ -14,6 +14,9 @@ const AGENT_TRIGGER_MAP: Record<string, string> = {
   'Lorena_Lee': 'ERP_PROSPECT',
   'LorenaLee': 'ERP_PROSPECT',
   'Lorena Lee': 'ERP_PROSPECT',
+  'ERP_ReplacementScorer': 'ERP_REPLACEMENT',
+  'ERPReplacementScorer': 'ERP_REPLACEMENT',
+  'ERP Replacement Scorer': 'ERP_REPLACEMENT',
 };
 
 function normalizeDomain(domain?: string, name?: string): string {
@@ -150,7 +153,25 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-    return extractArray(body).map(item => ({
+    if (['ERP_ReplacementScorer', 'ERPReplacementScorer', 'ERP Replacement Scorer'].includes(agentName)) {
+    return extractArray(body)
+      .filter(item => !!(item.company_name))
+      .map(item => ({
+        companyName: String(item.company_name || ''),
+        domain: normalizeDomain(String(item.domain || ''), String(item.company_name || '')),
+        country: 'PT',
+        sector: '',
+        triggerType: 'ERP_REPLACEMENT',
+        summary: String(item.replacement_rationale_pt || ''),
+        sourceUrl: '',
+        score_final: Number(item.replacement_urgency_score_0_100 || 0),
+        score_trigger: Number(item.replacement_urgency_score_0_100 || 0),
+        score_probability: Number(item.replacement_urgency_score_0_100 || 0),
+        raw: item,
+      }));
+  }
+
+  return extractArray(body).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
       country: item.pais as string,
@@ -311,6 +332,24 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
     }).filter((s) => s.companyName && s.companyName !== 'Unknown');
   }
 
+
+  if (['ERP_ReplacementScorer', 'ERPReplacementScorer', 'ERP Replacement Scorer'].includes(agentName)) {
+    return extractArray(body)
+      .filter(item => !!(item.company_name))
+      .map(item => ({
+        companyName: String(item.company_name || ''),
+        domain: normalizeDomain(String(item.domain || ''), String(item.company_name || '')),
+        country: 'PT',
+        sector: '',
+        triggerType: 'ERP_REPLACEMENT',
+        summary: String(item.replacement_rationale_pt || ''),
+        sourceUrl: '',
+        score_final: Number(item.replacement_urgency_score_0_100 || 0),
+        score_trigger: Number(item.replacement_urgency_score_0_100 || 0),
+        score_probability: Number(item.replacement_urgency_score_0_100 || 0),
+        raw: item,
+      }));
+  }
 
   return extractArray(body).map(item => ({
     companyName: String(item.companyName || item.empresa || item.entidade || item.name || ''),
@@ -534,6 +573,18 @@ export async function ingestRoutes(app: FastifyInstance) {
           }
         }
 
+        // Extra fields for ERP_REPLACEMENT agent
+        const replacementUpdate: Record<string, any> = {};
+        if (signal.triggerType === 'ERP_REPLACEMENT') {
+          const r = signal.raw as Record<string, any>;
+          if (r.replacement_tier) replacementUpdate.replacementTier = r.replacement_tier;
+          if (r.replacement_urgency_score_0_100) replacementUpdate.replacementScore = Number(r.replacement_urgency_score_0_100);
+          if (r.replacement_rationale_pt) replacementUpdate.replacementRationale = r.replacement_rationale_pt;
+          if (r.strategic_attack_angle_pt) replacementUpdate.attackAngle = r.strategic_attack_angle_pt;
+          if (r.recommended_sap_product) replacementUpdate.recommendedProduct = r.recommended_sap_product;
+          if (r.suggested_entry_role) replacementUpdate.entryRole = r.suggested_entry_role;
+        }
+
         const lead = await prisma.lead.upsert({
           where: { companyId: company.id },
           update: {
@@ -542,6 +593,7 @@ export async function ingestRoutes(app: FastifyInstance) {
             marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
             lastActivityDate: new Date(),
             updatedAt: new Date(),
+            ...replacementUpdate,
           },
           create: {
             companyId: company.id,
@@ -549,6 +601,7 @@ export async function ingestRoutes(app: FastifyInstance) {
             status: newStatus,
             marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
             lastActivityDate: new Date(),
+            ...replacementUpdate,
           },
         });
 

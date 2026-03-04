@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [erpProspects, setErpProspects] = useState<any[]>([]);
   const [employment, setEmployment] = useState<any[]>([]);
   const [nurturing, setNurturing] = useState<any[]>([]);
+  const [hotProspects, setHotProspects] = useState<any[]>([]);
   const [nurtureModal, setNurtureModal] = useState<any | null>(null);
   const NURTURE_REASONS_GLOBAL = ['Budget indisponível', 'Contrato atual em vigor', 'Não é prioridade agora', 'A avaliar internamente', 'Mudança de decisor', 'Outro'];
   const [nurtureForm, setNurtureForm] = useState({ reason: '', notes: '', nextContactDate: '' });
@@ -644,6 +645,57 @@ export default function Dashboard() {
                 </tr>);})}
               </tbody>
             </table>)}
+          </div>
+        )}
+
+        {!loading && tab === 'hot_prospects' && (
+          <div style={{ marginTop: '20px' }}>
+            {hotProspects.length === 0 ? <EmptyState msg="Sem Hot Prospects. Corre o agente ERP Replacement Scorer para classificar os leads." /> : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #334155', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Tier</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Empresa</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>ERP Atual</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Urgência</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Produto SAP</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Entrada</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left' }}>Racional</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {hotProspects.map((lead: any) => (
+                    <tr key={lead.id} style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1e293b')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      onClick={() => router.push('/leads/' + lead.id)}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ background: lead.replacementTier === 'Tier 1' ? '#7f1d1d' : '#78350f', color: 'white', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>
+                          {lead.replacementTier === 'Tier 1' ? '🔴 Tier 1' : '🟠 Tier 2'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{lead.company?.name || '-'}</td>
+                      <td style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px' }}>{lead.company?.signals?.find((s: any) => s.triggerType === 'ERP_REPLACEMENT')?.rawData?.current_erp || '-'}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ flex: 1, height: '6px', background: '#0f172a', borderRadius: '3px', minWidth: '60px' }}>
+                            <div style={{ width: Math.min(lead.replacementScore || 0, 100) + '%', height: '100%', background: (lead.replacementScore || 0) >= 70 ? '#ef4444' : '#f59e0b', borderRadius: '3px' }} />
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: (lead.replacementScore || 0) >= 70 ? '#ef4444' : '#f59e0b' }}>{lead.replacementScore || 0}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#a78bfa', fontSize: '12px' }}>{lead.recommendedProduct || '-'}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {lead.entryRole && <span style={{ background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', padding: '2px 8px', borderRadius: '6px', fontSize: '11px' }}>{lead.entryRole}</span>}
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '12px', maxWidth: '300px' }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.replacementRationale || '-'}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 

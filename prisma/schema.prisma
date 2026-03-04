@@ -147,6 +147,12 @@ model Lead {
   notes               String?
   lostReason          String?
   priority            String     @default("NORMAL")
+  replacementTier     String?
+  replacementScore    Float?
+  replacementRationale String?
+  attackAngle         String?
+  recommendedProduct  String?
+  entryRole           String?
   nextContactDate     DateTime?
   nurtureReason       String?
   nurtureNotes        String?
