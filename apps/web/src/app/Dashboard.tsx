@@ -97,6 +97,11 @@ export default function Dashboard() {
       setEmployment(Array.isArray(empd) ? empd : []);
       const nurtd = await nurtr.json().catch(() => []);
       setNurturing(Array.isArray(nurtd) ? nurtd : []);
+      // Hot Prospects: leads with replacementTier set
+      const allLeads = Array.isArray(ld) ? ld : (ld.leads || []);
+      const hot = allLeads.filter((l: any) => l.replacementTier === 'Tier 1' || l.replacementTier === 'Tier 2')
+        .sort((a: any, b: any) => (b.replacementScore || 0) - (a.replacementScore || 0));
+      setHotProspects(hot);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -143,7 +148,7 @@ export default function Dashboard() {
   const clevels = signals.filter(s => s.triggerType === 'C_LEVEL_CHANGE');
   const rfps = signals.filter(s => s.triggerType === 'RFP_SIGNAL');
   const expansions = signals.filter(s => s.triggerType === 'EXPANSION_SIGNAL');
-  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Prospects', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'nurturing', label: '🔄 Nurturing', count: nurturing.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
+  const tabs = [{ id: 'pipeline', label: 'Pipeline', count: leads.length }, { id: 'clevels', label: 'C-Level', count: clevels.length }, { id: 'rfp', label: 'RFP', count: rfps.length }, { id: 'expansion', label: 'Expansao', count: expansions.length }, { id: 'lorena', label: '🤖 Prospects', count: erpProspects.length }, { id: 'employment', label: '💼 Emprego', count: employment.length }, { id: 'nurturing', label: '🔄 Nurturing', count: nurturing.length }, { id: 'hot_prospects', label: '🔥 Hot Prospects', count: hotProspects.length }, { id: 'scoring', label: 'Scoring', count: 0 }, { id: 'sectors', label: 'Setores', count: sectors.length }];
   const kpis = [{ label: 'Total Leads', value: stats.total, color: '#f8fafc' }, { label: 'MQL', value: stats.mql, color: '#60a5fa' }, { label: 'SQL', value: stats.sql, color: '#4ade80' }, { label: 'Filtrados', value: stats.filtered, color: '#a78bfa' }];
 
   async function migrateEmploymentToPipeline(signal: any) {
