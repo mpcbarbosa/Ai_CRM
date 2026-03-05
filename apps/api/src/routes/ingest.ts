@@ -83,7 +83,7 @@ interface NormalizedSignal {
 
 function isValidSignal(s: NormalizedSignal): boolean {
   if (s.triggerType === 'SECTOR_INVESTMENT') return false; // Handled separately
-  if (s.triggerType === 'RFP_SIGNAL' || s.triggerType === 'CLEVEL_CHANGE') {
+  if (s.triggerType === 'RFP_SIGNAL' || s.triggerType === 'CLEVEL_CHANGE' || s.triggerType === 'ERP_REPLACEMENT') {
     return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-');
   }
   return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
@@ -153,13 +153,14 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-    if (['ERP_ReplacementScorer', 'ERPReplacementScorer', 'ERP Replacement Scorer'].includes(agentName)) {
-    return extractArray(body)
+  if (['ERP_ReplacementScorer', 'ERPReplacementScorer', 'ERP Replacement Scorer'].includes(agentName)) {
+    const items = extractArray(body);
+    return items
       .filter(item => !!(item.company_name))
       .map(item => ({
         companyName: String(item.company_name || ''),
         domain: normalizeDomain(String(item.domain || ''), String(item.company_name || '')),
-        country: 'PT',
+        country: String(item.country || 'PT'),
         sector: '',
         triggerType: 'ERP_REPLACEMENT',
         summary: String(item.replacement_rationale_pt || ''),
