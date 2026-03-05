@@ -82,11 +82,26 @@ interface NormalizedSignal {
 }
 
 function isValidSignal(s: NormalizedSignal): boolean {
-  if (s.triggerType === 'SECTOR_INVESTMENT') return false; // Handled separately
+  if (s.triggerType === 'SECTOR_INVESTMENT') return false;
+  if (!isValidCompanyName(s.companyName)) return false;
   if (s.triggerType === 'RFP_SIGNAL' || s.triggerType === 'CLEVEL_CHANGE' || s.triggerType === 'ERP_REPLACEMENT') {
-    return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-');
+    return true;
   }
-  return !!(s.companyName && s.companyName !== 'Unknown' && s.companyName !== '-' && s.domain);
+  return !!(s.domain);
+}
+
+function isValidCompanyName(name: string): boolean {
+  if (!name || name.length < 2) return false;
+  // Reject if it looks like a field label or sentence fragment
+  const INVALID_PATTERNS = [
+    /^(Revenue|Industry|Headquarters|Employees|Number of|Pharmaceuticals|Purchase|The |Hence|Companies|Power Generation)/i,
+    /:\s*$/,           // ends with colon
+    /^(yes|no|true|false|null|undefined)$/i,
+    /(consists of|engaged in|utilize|such as|including)/i,
+  ];
+  if (INVALID_PATTERNS.some(p => p.test(name))) return false;
+  if (name.length > 100) return false;
+  return true;
 }
 
 function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] {
