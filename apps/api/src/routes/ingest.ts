@@ -589,16 +589,32 @@ export async function ingestRoutes(app: FastifyInstance) {
           }
         }
 
-        // Extra fields for ERP_REPLACEMENT agent
-        const replacementUpdate: Record<string, any> = {};
+        // ERP_REPLACEMENT: only update existing leads, never create new ones
         if (signal.triggerType === 'ERP_REPLACEMENT') {
           const r = signal.raw as Record<string, any>;
-          if (r.replacement_tier) replacementUpdate.replacementTier = r.replacement_tier;
-          if (r.replacement_urgency_score_0_100) replacementUpdate.replacementScore = Number(r.replacement_urgency_score_0_100);
-          if (r.replacement_rationale_pt) replacementUpdate.replacementRationale = r.replacement_rationale_pt;
-          if (r.strategic_attack_angle_pt) replacementUpdate.attackAngle = r.strategic_attack_angle_pt;
-          if (r.recommended_sap_product) replacementUpdate.recommendedProduct = r.recommended_sap_product;
-          if (r.suggested_entry_role) replacementUpdate.entryRole = r.suggested_entry_role;
+          const existingLead = await prisma.lead.findUnique({ where: { companyId: company.id } });
+          if (!existingLead) {
+            logger.warn({ company: signal.companyName }, 'ERP_REPLACEMENT skipped - company not in pipeline');
+            results.push({ skipped: true, reason: 'not_in_pipeline', company: signal.companyName });
+            continue;
+          }
+          const updated = await prisma.lead.update({
+            where: { companyId: company.id },
+            data: {
+              replacementTier: r.replacement_tier || null,
+              replacementScore: r.replacement_urgency_score_0_100 ? Number(r.replacement_urgency_score_0_100) : null,
+              replacementRationale: r.replacement_rationale_pt || null,
+              attackAngle: r.strategic_attack_angle_pt || null,
+              recommendedProduct: r.recommended_sap_product || null,
+              entryRole: r.suggested_entry_role || null,
+              updatedAt: new Date(),
+            },
+          });
+          results.push({
+            company: { id: company.id, name: company.name },
+            lead: { id: updated.id, replacementTier: updated.replacementTier, replacementScore: updated.replacementScore },
+          });
+          continue;
         }
 
         const lead = await prisma.lead.upsert({
@@ -609,7 +625,6 @@ export async function ingestRoutes(app: FastifyInstance) {
             marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
             lastActivityDate: new Date(),
             updatedAt: new Date(),
-            ...replacementUpdate,
           },
           create: {
             companyId: company.id,
@@ -617,7 +632,6 @@ export async function ingestRoutes(app: FastifyInstance) {
             status: newStatus,
             marketingQualified: newStatus === 'MQL' || newStatus === 'SQL',
             lastActivityDate: new Date(),
-            ...replacementUpdate,
           },
         });
 
