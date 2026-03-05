@@ -40,7 +40,11 @@ model Company {
   size          String?
   description   String?
   revenue       String?
+  revenueValue  Float?
   employeeCount Int?
+  employeeRange String?
+  triggerEvent  String?
+  erpOpportunity String?
   numberOfSites Int?
   linkedinUrl   String?
   phone         String?

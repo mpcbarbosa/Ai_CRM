@@ -1,0 +1,4 @@
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "revenueValue"   FLOAT;
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "employeeRange"  TEXT;
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "triggerEvent"   TEXT;
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "erpOpportunity" TEXT;

@@ -51,6 +51,10 @@ interface NormalizedSignal {
   size?: string;
   // New Company fields
   legalName?: string;
+  revenueValue?: number;
+  employeeRange?: string;
+  triggerEvent?: string;
+  erpOpportunity?: string;
   nif?: string;
   phone?: string;
   email?: string;
@@ -301,6 +305,10 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 
       return {
         companyName: String(r.company_name || identification.trade_name || identification.legal_name || ''),
+        revenueValue: Number((bizProfile.estimated_revenue_eur as any)?.value || r.estimated_revenue?.replace(/[^0-9]/g, '') || 0) || undefined,
+        employeeRange: String(r.employee_range || r.employees || ''),
+        triggerEvent: String(r.trigger_event || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.details : '') || ''),
+        erpOpportunity: String(r.why_erp_opportunity || r.why_now || ''),
         legalName: String(identification.legal_name || r.legal_name || ''),
         nif: String(identification.nif || r.nif || ''),
         domain: normalizeDomain(String(r.domain || identification.website || ''), String(r.company_name || '')),
@@ -476,6 +484,10 @@ export async function ingestRoutes(app: FastifyInstance) {
         if (signal.partOfGroup !== undefined) companyUpdate.partOfGroup = signal.partOfGroup;
         if (signal.parentCompany) companyUpdate.parentCompany = signal.parentCompany;
         if (signal.numberOfSites) companyUpdate.numberOfSites = signal.numberOfSites;
+        if (signal.revenueValue) companyUpdate.revenueValue = signal.revenueValue;
+        if (signal.employeeRange) companyUpdate.employeeRange = signal.employeeRange;
+        if (signal.triggerEvent) companyUpdate.triggerEvent = signal.triggerEvent;
+        if (signal.erpOpportunity) companyUpdate.erpOpportunity = signal.erpOpportunity;
 
         const company = await prisma.company.upsert({
           where: { domain: signal.domain },
@@ -501,6 +513,10 @@ export async function ingestRoutes(app: FastifyInstance) {
             partOfGroup: signal.partOfGroup || undefined,
             parentCompany: signal.parentCompany || undefined,
             numberOfSites: signal.numberOfSites || undefined,
+            revenueValue: signal.revenueValue || undefined,
+            employeeRange: signal.employeeRange || undefined,
+            triggerEvent: signal.triggerEvent || undefined,
+            erpOpportunity: signal.erpOpportunity || undefined,
           },
         });
 
