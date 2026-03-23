@@ -305,7 +305,7 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
 
       return {
         companyName: String(r.company_name || identification.trade_name || identification.legal_name || ''),
-        revenueValue: Number((bizProfile.estimated_revenue_eur as any)?.value || r.estimated_revenue?.replace(/[^0-9]/g, '') || 0) || undefined,
+        revenueValue: Number((bizProfile.estimated_revenue_eur as any)?.value || (r.estimated_revenue as any)?.replace(/[^0-9]/g, '') || 0) || undefined,
         employeeRange: String(r.employee_range || r.employees || ''),
         triggerEvent: String(r.trigger_event || (Array.isArray(r.buying_signals) ? (r.buying_signals as any[])[0]?.details : '') || ''),
         erpOpportunity: String(r.why_erp_opportunity || r.why_now || ''),
