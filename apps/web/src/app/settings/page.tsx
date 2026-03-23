@@ -1,8 +1,8 @@
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 
 export const dynamic = 'force-dynamic';
 
-const SettingsPage = dynamic(() => import('./SettingsClient'), { ssr: false });
+const SettingsPage = nextDynamic(() => import('./SettingsClient'), { ssr: false });
 
 export default function Page() {
   return <SettingsPage />;

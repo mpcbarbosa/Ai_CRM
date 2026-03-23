@@ -1,8 +1,8 @@
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 
 export const dynamic = 'force-dynamic';
 
-const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false });
+const Dashboard = nextDynamic(() => import('./Dashboard'), { ssr: false });
 
 export default function Page() {
   return <Dashboard />;
