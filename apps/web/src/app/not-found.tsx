@@ -1,4 +1,7 @@
+import { unstable_noStore as noStore } from 'next/cache';
+
 export default function NotFound() {
+  noStore();
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', color: '#64748b' }}>
