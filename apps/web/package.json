@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "NODE_ENV=production rm -rf .next && next build",
+    "build": "node build.js",
     "start": "next start -p ${PORT:-3001}"
   },
   "dependencies": {
