@@ -42,6 +42,15 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(filtered);
   });
 
+  // GET /api/leads/erp-prospects/:signalId/debug — diagnóstico temporário
+  app.get('/api/leads/erp-prospects/:signalId/debug', async (req, reply) => {
+    const { signalId } = req.params as { signalId: string };
+    const signal = await prisma.leadSignal.findUnique({ where: { id: signalId } });
+    if (!signal) return reply.send({ error: 'signal not found', signalId });
+    const lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+    return reply.send({ signal: { id: signal.id, triggerType: signal.triggerType, companyId: signal.companyId, score_final: signal.score_final }, existingLead: lead ? { id: lead.id, status: lead.status } : null });
+  });
+
   // GET /api/leads/erp-prospects — DEVE ficar antes de /:id para evitar conflito de rota
   app.get('/api/leads/erp-prospects', async (req, reply) => {
     const signals = await prisma.leadSignal.findMany({
