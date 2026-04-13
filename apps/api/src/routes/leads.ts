@@ -42,6 +42,72 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(filtered);
   });
 
+  // GET /api/leads/erp-prospects — DEVE ficar antes de /:id para evitar conflito de rota
+  app.get('/api/leads/erp-prospects', async (req, reply) => {
+    const signals = await prisma.leadSignal.findMany({
+      where: { triggerType: 'ERP_PROSPECT' },
+      orderBy: { createdAt: 'desc' },
+      include: { company: true },
+    });
+    const results = signals.map((s: any) => ({ ...s, lead: null }));
+    return reply.send(results);
+  });
+
+  // POST /api/leads/erp-prospects/:signalId/migrate — DEVE ficar antes de /:id
+  app.post('/api/leads/erp-prospects/:signalId/migrate', async (req, reply) => {
+    const { signalId } = req.params as { signalId: string };
+    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
+    console.log('[migrate] start', signalId);
+    try {
+      const signal = await prisma.leadSignal.findUnique({ where: { id: signalId } });
+      console.log('[migrate] signal found:', !!signal, 'companyId:', signal?.companyId);
+      if (!signal) return reply.status(404).send({ error: 'Signal not found' });
+      if (!signal.companyId) return reply.status(400).send({ error: 'Signal has no companyId' });
+
+      let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+      console.log('[migrate] existing lead:', !!lead);
+      const isNew = !lead;
+      if (!lead) {
+        lead = await prisma.lead.create({
+          data: {
+            companyId: signal.companyId,
+            status: 'NEW',
+            totalScore: Number(signal.score_final) || 0,
+            lastActivityDate: new Date(),
+          },
+        });
+        console.log('[migrate] lead created:', lead.id);
+      }
+
+      try {
+        await prisma.auditLog.create({
+          data: {
+            leadId: lead.id,
+            userName,
+            action: 'LEAD_CREATED',
+            details: { source: 'LORENA_LEE_PROSPECT', description: isNew ? 'Migrado para Pipeline' : 'Já existia', migratedFrom: signalId } as any,
+          },
+        });
+      } catch (auditErr: any) {
+        console.error('[migrate] audit log failed (non-fatal):', auditErr.message);
+      }
+
+      await prisma.leadSignal.update({ where: { id: signalId }, data: { triggerType: 'LEAD_SCAN' } });
+      console.log('[migrate] done');
+      return reply.send({ ok: true, leadId: lead.id });
+    } catch (err: any) {
+      console.error('[migrate] FATAL:', err.message);
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // POST /api/leads/erp-prospects/:signalId/discard — DEVE ficar antes de /:id
+  app.post('/api/leads/erp-prospects/:signalId/discard', async (req, reply) => {
+    const { signalId } = req.params as { signalId: string };
+    await prisma.leadSignal.update({ where: { id: signalId }, data: { triggerType: 'ERP_PROSPECT_DISCARDED' } });
+    return reply.send({ ok: true });
+  });
+
   app.get('/api/leads/:id', async (req, reply) => {
     const { id } = req.params as { id: string };
     const lead = await prisma.lead.findUnique({
@@ -697,20 +763,6 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(leads);
   });
 
-  // GET /api/leads/erp-prospects — Lorena Lee prospects pending pipeline migration
-  app.get('/api/leads/erp-prospects', async (req, reply) => {
-    const signals = await prisma.leadSignal.findMany({
-      where: { triggerType: 'ERP_PROSPECT' },
-      orderBy: { createdAt: 'desc' },
-      include: { company: true },
-    });
-    // Only show as "in pipeline" if this specific signal was migrated (triggerType changed)
-    // Since we filter by ERP_PROSPECT, none of these have been migrated yet
-    // lead field is null for all — migration moves them OUT of this list
-    const results = signals.map((s: any) => ({ ...s, lead: null }));
-    return reply.send(results);
-  });
-
   // GET /api/signals/employment — employment signals
   app.get('/api/signals/employment', async (req, reply) => {
     const EMPLOYMENT_KEYWORDS = ['recrut', 'hiring', 'hr manager', 'people manager', 'talent acquisition', 'oferta de emprego', 'abertura de vaga', 'it recruiter', 'erp recruiter', 'sap recruiter', 'job opening'];
@@ -725,80 +777,6 @@ export async function leadsRoutes(app: FastifyInstance) {
     });
     return reply.send(employment);
   });
-
-  // POST /api/leads/erp-prospects/:signalId/migrate — promote ERP prospect to pipeline
-  app.post('/api/leads/erp-prospects/:signalId/migrate', async (req, reply) => {
-    const { signalId } = req.params as { signalId: string };
-    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
-    console.log('[migrate] start', signalId);
-    try {
-      // 1. Buscar signal
-      const signal = await prisma.leadSignal.findUnique({ where: { id: signalId } });
-      console.log('[migrate] signal found:', !!signal, 'companyId:', signal?.companyId);
-      if (!signal) return reply.status(404).send({ error: 'Signal not found' });
-      if (!signal.companyId) return reply.status(400).send({ error: 'Signal has no companyId' });
-
-      // 2. Criar ou reutilizar lead
-      let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
-      console.log('[migrate] existing lead:', !!lead);
-      const isNew = !lead;
-      if (!lead) {
-        lead = await prisma.lead.create({
-          data: {
-            companyId: signal.companyId,
-            status: 'NEW',
-            totalScore: Number(signal.score_final) || 0,
-            lastActivityDate: new Date(),
-          },
-        });
-        console.log('[migrate] lead created:', lead.id);
-      }
-
-      // 3. Audit log
-      try {
-        await prisma.auditLog.create({
-          data: {
-            leadId: lead.id,
-            userName,
-            action: 'LEAD_CREATED',
-            details: {
-              source: 'LORENA_LEE_PROSPECT',
-              description: isNew ? 'Migrado para Pipeline' : 'Adicionado ao Pipeline (já existia)',
-              migratedFrom: signalId,
-            } as any,
-          },
-        });
-        console.log('[migrate] audit log created');
-      } catch (auditErr: any) {
-        console.error('[migrate] audit log failed (non-fatal):', auditErr.message);
-        // Não falha — audit é opcional
-      }
-
-      // 4. Mudar triggerType para aparecer no pipeline
-      await prisma.leadSignal.update({
-        where: { id: signalId },
-        data: { triggerType: 'LEAD_SCAN' },
-      });
-      console.log('[migrate] signal updated to LEAD_SCAN');
-
-      return reply.send({ ok: true, leadId: lead.id });
-    } catch (err: any) {
-      console.error('[migrate] FATAL error:', err.message, err.stack);
-      return reply.status(500).send({ error: err.message });
-    }
-  });
-
-  // POST /api/leads/erp-prospects/:signalId/discard — discard ERP prospect
-  app.post('/api/leads/erp-prospects/:signalId/discard', async (req, reply) => {
-    const { signalId } = req.params as { signalId: string };
-    const userName = (req.headers['x-user-name'] as string) || 'Utilizador';
-    await prisma.leadSignal.update({
-      where: { id: signalId },
-      data: { triggerType: 'ERP_PROSPECT_DISCARDED' },
-    });
-    return reply.send({ ok: true });
-  });
-
 
   // PATCH /api/signals/:id/reclassify — change triggerType (e.g. employment → LEAD_SCAN for pipeline)
   app.patch('/api/signals/:id/reclassify', async (req, reply) => {
