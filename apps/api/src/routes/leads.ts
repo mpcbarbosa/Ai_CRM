@@ -735,19 +735,17 @@ export async function leadsRoutes(app: FastifyInstance) {
       if (!signal) return reply.status(404).send({ error: 'Signal not found' });
       if (!signal.companyId) return reply.status(400).send({ error: 'Signal has no companyId' });
 
-      // Check if lead already exists
-      let lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
-      const isNew = !lead;
-      if (!lead) {
-        lead = await prisma.lead.create({
-          data: {
-            companyId: signal.companyId,
-            status: 'NEW',
-            totalScore: signal.score_final || 0,
-            lastActivityDate: new Date(),
-          },
-        });
-      }
+      // Upsert lead — cria se não existir, mantém se já existir
+      const existingLead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
+      const isNew = !existingLead;
+      const lead = existingLead ?? await prisma.lead.create({
+        data: {
+          companyId: signal.companyId,
+          status: 'NEW',
+          totalScore: signal.score_final || 0,
+          lastActivityDate: new Date(),
+        },
+      });
 
       // Audit: who migrated and when
       await prisma.auditLog.create({

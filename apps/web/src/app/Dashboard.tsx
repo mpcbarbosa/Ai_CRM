@@ -175,13 +175,25 @@ export default function Dashboard() {
 
   async function migrateToPipeline(signalId: string, userName = 'Utilizador') {
     setMigratingId(signalId);
-    await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
-    });
-    setMigratingId(null);
-    setSelectedProspect(null);
-    load();
+    try {
+      const res = await fetch(API + '/api/leads/erp-prospects/' + signalId + '/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+        alert('Erro ao migrar: ' + (err.error || res.status));
+        setMigratingId(null);
+        return;
+      }
+      setSelectedProspect(null);
+      await load();
+      setTab('pipeline');
+    } catch (e: any) {
+      alert('Erro de ligação: ' + e.message);
+    } finally {
+      setMigratingId(null);
+    }
   }
 
   async function moveLeadToTab(lead: any, triggerType: string) {
