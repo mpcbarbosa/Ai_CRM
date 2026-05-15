@@ -1,10 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-// All API calls go through the server-side proxy at /api/proxy/* so the
-// auth token stays out of the client bundle. See apps/web/src/app/api/proxy
-// for the forwarder. A1 in docs/revisao-geral.md.
-const API = '/api/proxy';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-crm-api-pcdn.onrender.com';
 
 export default function SettingsPage() {
   const [recipients, setRecipients] = useState<string[]>([]);
