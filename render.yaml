@@ -32,11 +32,19 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # IMPORTANT: keep this as a literal value. Previously this used
+      # `fromService.property: host` against `name: ai-crm-api`, but the
+      # live service is `ai-crm-api-pcdn` (renamed outside the IaC). The
+      # `property: host` was resolving to just "ai-crm-api-pcdn" — the bare
+      # service name without `.onrender.com` and without a scheme — which
+      # is not a usable URL. The browser ended up treating
+      # `fetch('ai-crm-api-pcdn/api/leads')` as a path relative to the web
+      # origin and every request returned 404. The Render dashboard env
+      # var on ai-crm-web-pcdn was set manually to the value below to fix
+      # production; this commit aligns the IaC with what's already live.
+      # If the API service is ever renamed, update this literal too.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: ai-crm-api
-          type: web
-          property: host
+        value: https://ai-crm-api-pcdn.onrender.com
 
 databases:
   - name: ai-crm-db
