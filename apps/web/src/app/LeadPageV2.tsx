@@ -2,7 +2,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-crm-api-pcdn.onrender.com';
+// All API calls go through the server-side proxy at /api/proxy/* so the
+// auth token stays out of the client bundle. See apps/web/src/app/api/proxy
+// for the forwarder. A1 in docs/revisao-geral.md.
+const API = '/api/proxy';
 const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', NURTURING: '#0e7490', DISCARDED: '#7f1d1d' };
 const STAGE_COLORS: Record<string,string> = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK', 'LINKEDIN_INMAIL', 'LINKEDIN_MESSAGE'];
