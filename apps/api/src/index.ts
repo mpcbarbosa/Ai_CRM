@@ -10,8 +10,14 @@ app.register(cors, { origin: true });
 
 // Custom JSON parser that accepts both objects and arrays
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+  // Treat empty body as `{}` instead of letting JSON.parse('') throw.
+  // The frontend sends POSTs with `Content-Type: application/json` but no body
+  // for several actions (migrate, discard, enrich) — without this guard, those
+  // requests fail with HTTP 500 "Unexpected end of JSON input" before they
+  // ever reach the route handler.
+  const raw = (body as string) || '';
   try {
-    done(null, JSON.parse(body as string));
+    done(null, raw.trim() ? JSON.parse(raw) : {});
   } catch (e) {
     done(e as Error, undefined);
   }
