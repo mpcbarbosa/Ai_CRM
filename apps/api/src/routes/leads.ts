@@ -516,11 +516,26 @@ export async function leadsRoutes(app: FastifyInstance) {
       });
       if (!lead) return reply.status(404).send({ error: 'Lead not found' });
 
-      // Carregar destinatários das settings
-      const settingRow = await prisma.setting.findUnique({ where: { key: 'emailRecipients' } });
-      const defaultRecipients: string[] = settingRow?.value
-        ? settingRow.value.split(',').map((e: string) => e.trim()).filter(Boolean)
-        : [];
+      // Carregar destinatários das settings.
+      // The frontend SettingsClient saves under 'emailRecipients' (camelCase)
+      // as a JSON array; legacy data may live under 'email_recipients' (snake)
+      // as a JSON array OR a CSV string. Tolerate all three shapes.
+      let settingRow = await prisma.setting.findUnique({ where: { key: 'emailRecipients' } });
+      if (!settingRow) {
+        settingRow = await prisma.setting.findUnique({ where: { key: 'email_recipients' } });
+      }
+      let defaultRecipients: string[] = [];
+      if (settingRow?.value) {
+        try {
+          const parsed = JSON.parse(settingRow.value);
+          defaultRecipients = Array.isArray(parsed)
+            ? parsed.map((e: unknown) => String(e).trim()).filter(Boolean)
+            : String(parsed).split(',').map((e: string) => e.trim()).filter(Boolean);
+        } catch {
+          // Legacy CSV string stored without JSON wrapping
+          defaultRecipients = settingRow.value.split(',').map((e: string) => e.trim()).filter(Boolean);
+        }
+      }
       const allRecipients = [...defaultRecipients, ...(extraRecipients || [])].filter(Boolean);
 
       if (allRecipients.length === 0) {
@@ -528,8 +543,11 @@ export async function leadsRoutes(app: FastifyInstance) {
       }
 
       const c = lead.company as any;
+      // Use the actual LeadSignal field names (triggerType / summary / score_final).
+      // Previously this used s.type / s.title / s.score which don't exist on the
+      // model, so every signal rendered as `[undefined] undefined — score: 0`.
       const signals = (c?.signals || []).map((s: any) =>
-        `<li><strong>[${s.type}]</strong> ${s.title || s.type} — score: ${s.score || 0}</li>`
+        `<li><strong>[${s.triggerType}]</strong> ${s.summary || s.triggerType} — score: ${s.score_final || 0}</li>`
       ).join('');
 
       const scoreColor = (lead.totalScore || 0) >= 100 ? '#16a34a' : (lead.totalScore || 0) >= 70 ? '#2563eb' : '#64748b';

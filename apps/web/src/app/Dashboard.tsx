@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = 'https://ai-crm-api-pcdn.onrender.com';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-crm-api-pcdn.onrender.com';
 const STATUS_ORDER = ['NEW', 'UNDER_QUALIFICATION', 'MQL', 'SQL', 'DISCARDED'];
 const STATUS_COLORS: Record<string, string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', NURTURING: '#0e7490', DISCARDED: '#7f1d1d' };
 const STATUS_LABELS: Record<string, string> = { NEW: 'New', UNDER_QUALIFICATION: 'Under Qual.', MQL: 'MQL', SQL: 'SQL', NURTURING: 'Nurturing', DISCARDED: 'Descartado' };

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-const API = 'https://ai-crm-api-pcdn.onrender.com';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://ai-crm-api-pcdn.onrender.com';
 const STATUS_COLORS: Record<string,string> = { NEW: '#475569', UNDER_QUALIFICATION: '#b45309', MQL: '#1d4ed8', SQL: '#15803d', NURTURING: '#0e7490', DISCARDED: '#7f1d1d' };
 const STAGE_COLORS: Record<string,string> = { DISCOVERY: '#7c3aed', PROPOSAL: '#1d4ed8', NEGOTIATION: '#b45309', WON: '#15803d', LOST: '#991b1b' };
 const ACTIVITY_TYPES = ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'TASK', 'LINKEDIN_INMAIL', 'LINKEDIN_MESSAGE'];
@@ -81,10 +81,14 @@ export default function LeadPage({ leadId }: { leadId: string }) {
     fetch(API + '/api/settings')
       .then(r => r.json())
       .then(data => {
-        if (data?.emailRecipients) {
-          setDefaultRecipients(
-            data.emailRecipients.split(',').map((e: string) => e.trim()).filter(Boolean)
-          );
+        // Backend now returns the value JSON-parsed, so an array stays an array.
+        // Tolerate both the new key (emailRecipients) and the legacy one
+        // (email_recipients), and accept either an array or a CSV string.
+        const v = data?.emailRecipients ?? data?.email_recipients;
+        if (Array.isArray(v)) {
+          setDefaultRecipients(v.map((e: unknown) => String(e).trim()).filter(Boolean));
+        } else if (typeof v === 'string' && v) {
+          setDefaultRecipients(v.split(',').map((e: string) => e.trim()).filter(Boolean));
         }
       })
       .catch(() => {});
@@ -94,8 +98,10 @@ export default function LeadPage({ leadId }: { leadId: string }) {
     if (!lead) return { subject: '', body: '' };
     const c = lead.company;
     const subject = `[Gobii CRM] Lead: ${c?.name || 'N/A'} — ${lead.status}`;
+    // Use the actual LeadSignal field names (triggerType / summary / score_final)
+    // — previous version used s.type / s.title / s.score which don't exist.
     const signals = (c?.signals || []).slice(0, 5).map((s: any) =>
-      `• [${s.type}] ${s.title || s.type} (score: ${s.score || 0})`
+      `• [${s.triggerType}] ${s.summary || s.triggerType} (score: ${s.score_final || 0})`
     ).join('\n');
     const body = [
       `Lead: ${c?.name || 'N/A'}`,

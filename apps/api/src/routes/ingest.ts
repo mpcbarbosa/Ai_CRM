@@ -172,26 +172,10 @@ function normalizePayload(agentName: string, body: unknown): NormalizedSignal[] 
   }
 
   if (agentName === 'SAP_S4HANA_CLevelScanner_Daily') {
-  if (['ERP_ReplacementScorer', 'ERPReplacementScorer', 'ERP Replacement Scorer'].includes(agentName)) {
-    const items = extractArray(body);
-    return items
-      .filter(item => !!(item.company_name))
-      .map(item => ({
-        companyName: String(item.company_name || ''),
-        domain: normalizeDomain(String(item.domain || ''), String(item.company_name || '')),
-        country: String(item.country || 'PT'),
-        sector: '',
-        triggerType: 'ERP_REPLACEMENT',
-        summary: String(item.replacement_rationale_pt || ''),
-        sourceUrl: '',
-        score_final: Number(item.replacement_urgency_score_0_100 || 0),
-        score_trigger: Number(item.replacement_urgency_score_0_100 || 0),
-        score_probability: Number(item.replacement_urgency_score_0_100 || 0),
-        raw: item,
-      }));
-  }
-
-  return extractArray(body).map(item => ({
+    // (The previous version had a nested `if (agentName === 'ERP_ReplacementScorer'...)`
+    // here that was dead code — `agentName` cannot equal both at once. The real
+    // ERP_ReplacementScorer handler lives further down in this same function.)
+    return extractArray(body).map(item => ({
       companyName: String(item.empresa || ''),
       domain: normalizeDomain(undefined, item.empresa as string),
       country: item.pais as string,
@@ -445,20 +429,18 @@ export async function ingestRoutes(app: FastifyInstance) {
 
     const results = [];
 
-    // Handle SECTOR_INVESTMENT separately - store raw data without creating companies/leads
+    // SECTOR_INVESTMENT signals are intentionally excluded from the main pipeline.
+    // The previous block tried to upsert into a `sectorData` model that doesn't
+    // exist in the Prisma schema; the silent .catch(() => {}) was misleading
+    // ("Sector signal stored" was logged even though nothing was persisted).
+    // These signals are filtered out by isValidSignal() above; we just log them
+    // for visibility so it's clear they were received and not stored.
     const sectorSignals = allSignals.filter(s => s.triggerType === 'SECTOR_INVESTMENT');
-    for (const s of sectorSignals) {
-      try {
-        // Store in a generic company placeholder for sector data
-        await (prisma as any).sectorData.upsert({
-          where: { id: s.raw.setor as string || s.companyName },
-          update: { rawData: s.raw as any, updatedAt: new Date() },
-          create: { id: s.raw.setor as string || s.companyName, rawData: s.raw as any },
-        }).catch(() => {
-          // If sectorData table doesn't exist yet, just log
-          logger.info({ setor: s.companyName }, 'Sector signal stored');
-        });
-      } catch(e) { /* ignore */ }
+    if (sectorSignals.length > 0) {
+      logger.info(
+        { count: sectorSignals.length, agent: agentName },
+        'Sector investment signals received but not stored (intentional)'
+      );
     }
 
     for (const signal of signals) {

@@ -15,7 +15,7 @@ export default function SettingsPage() {
     fetch(API + '/api/settings')
       .then(r => r.json())
       .then(d => {
-        setRecipients(d.email_recipients || []);
+        setRecipients(d.emailRecipients || []);
         setMqlThreshold(Number(d.mql_threshold) || 70);
         setSqlThreshold(Number(d.sql_threshold) || 100);
         setLoading(false);
@@ -38,13 +38,13 @@ export default function SettingsPage() {
     const updated = [...recipients, email];
     setRecipients(updated);
     setNewEmail('');
-    saveSetting('email_recipients', updated);
+    saveSetting('emailRecipients', updated);
   }
 
   function removeRecipient(email: string) {
     const updated = recipients.filter(r => r !== email);
     setRecipients(updated);
-    saveSetting('email_recipients', updated);
+    saveSetting('emailRecipients', updated);
   }
 
   const card = (title: string, children: React.ReactNode) => (
@@ -111,7 +111,7 @@ export default function SettingsPage() {
                 + Adicionar
               </button>
             </div>
-            {savedBadge('email_recipients')}
+            {savedBadge('emailRecipients')}
           </div>
         ))}
 
