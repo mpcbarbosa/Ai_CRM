@@ -47,9 +47,12 @@ function pickForwardHeaders(req: NextRequest): Headers {
   if (un) out.set('x-user-name', un);
   const ui = req.headers.get('x-user-id');
   if (ui) out.set('x-user-id', ui);
-  // A1.b will add Authorization here:
-  //   const token = process.env.API_SECRET_KEY;
-  //   if (token) out.set('authorization', `Bearer ${token}`);
+  // Inject the shared secret so the Fastify side can authenticate the proxy.
+  // We never read this on the client (it's server-side env only) so it stays
+  // out of the browser bundle. While A1.b.2 is not yet deployed, the API
+  // ignores the extra header — this commit is intentionally a no-op in prod.
+  const token = process.env.API_SECRET_KEY;
+  if (token) out.set('authorization', `Bearer ${token}`);
   return out;
 }
 
