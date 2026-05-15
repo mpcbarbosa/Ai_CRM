@@ -1,7 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export async function settingsRoutes(app: FastifyInstance) {
   // GET all settings

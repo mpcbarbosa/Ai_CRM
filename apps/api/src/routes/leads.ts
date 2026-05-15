@@ -635,7 +635,9 @@ export async function leadsRoutes(app: FastifyInstance) {
   app.post('/api/admin/reset', async (req, reply) => {
     const secret = process.env.RESET_SECRET;
     const { confirm } = req.body as { confirm?: string };
-    if (secret && confirm !== secret) {
+    // Fail-closed: if RESET_SECRET is unset, reject. The previous `secret && ...`
+    // form silently allowed any POST through when the env var was missing.
+    if (!secret || confirm !== secret) {
       return reply.code(401).send({ error: 'Invalid confirm secret' });
     }
     await prisma.auditLog.deleteMany();
