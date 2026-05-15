@@ -95,10 +95,32 @@ Todos sem auth e expostos em produção (mais grave dado A1):
 #### B2. Causa secundária possível: race condition no AuditLog — `[ALTO][XS]`
 [apps/api/src/routes/leads.ts:91-102](apps/api/src/routes/leads.ts:91) cria o `AuditLog` num `try/catch` separado e marca como non-fatal — bom. **Mas** a versão anterior do código provavelmente não tinha este try/catch (o commit `a91646a` chama-se "fix: migrate endpoint com logs detalhados e audit log não-fatal"), então **se prod ainda estiver a correr essa versão antiga** o AuditLog pode estar a falhar (ex: `userName` NOT NULL com valor undefined) e deitar abaixo a request inteira. Vale a pena confirmar a build atualmente em prod (Render Dashboard → Events).
 
-#### B3. Causa secundária possível: connection pool exhaustion — `[ALTO][XS]`
-[apps/api/src/routes/settings.ts:4](apps/api/src/routes/settings.ts:4) instancia uma **segunda** `new PrismaClient()` em vez de reutilizar a singleton em [apps/api/src/lib/prisma.ts](apps/api/src/lib/prisma.ts). Cada chamada a `/api/settings` ou `/api/settings/:key` cria um novo pool de connections. No Render free tier (Postgres com pool default de ~10 connections), isto esgota o pool e queries subsequentes (incluindo o `/migrate`) podem falhar com `Can't reach database server` ou `Connection pool timeout` → catch genérico → 500.
+#### B3. Causa secundária possível: connection pool exhaustion — `[ALTO][XS]` ✅ resolvido (cb9cc9e)
+[apps/api/src/routes/settings.ts:4](apps/api/src/routes/settings.ts:4) instanciava uma **segunda** `new PrismaClient()` em vez de reutilizar a singleton em [apps/api/src/lib/prisma.ts](apps/api/src/lib/prisma.ts). Cada chamada a `/api/settings` ou `/api/settings/:key` criava um novo pool de connections. No Render free tier (Postgres com pool default de ~10 connections), isto esgotava o pool e queries subsequentes podiam falhar com `Can't reach database server` ou `Connection pool timeout` → catch genérico → 500.
 
-**Mitigação:** uma linha — substituir `import { PrismaClient }` + instanciação por `import { prisma } from '../lib/prisma'` em [routes/settings.ts](apps/api/src/routes/settings.ts).
+**Mitigação aplicada:** singleton importada em vez de instanciada (commit 71499dd no PR #2). Não era a causa do bug do migrate (ver B4 abaixo) mas era um risco real e fica fechado.
+
+#### B4. CAUSA REAL DO 500 DO MIGRATE: parser custom de JSON rebenta com body vazio — `[CRÍTICO][XS]`
+**Identificado em runtime após PR #2.** Depois de PR #2 ser deployed e o bug persistir, chamada direta na consola do browser:
+```js
+fetch('https://ai-crm-api-pcdn.onrender.com/api/leads/erp-prospects/<signalId>/migrate',
+  {method: 'POST', headers: {'Content-Type':'application/json'}})
+  .then(r => r.json()).then(console.log)
+```
+devolveu:
+```json
+{"statusCode": 500, "error": "Internal Server Error", "message": "Unexpected end of JSON input"}
+```
+
+**Mecanismo:** o frontend faz POST em [Dashboard.tsx:179-182](apps/web/src/app/Dashboard.tsx:179) com `Content-Type: application/json` mas **sem `body`** (não precisa de payload — o `signalId` está no URL). O custom parser em [apps/api/src/index.ts:12-18](apps/api/src/index.ts:12) faz `JSON.parse(body as string)` direto. Quando body é string vazia, `JSON.parse('')` lança `SyntaxError: Unexpected end of JSON input`. O `done(e, undefined)` propaga ao Fastify, que devolve resposta com formato default `{statusCode, error, message}` — e o erro acontece **antes do handler do `/migrate` correr**, por isso (a) os logs `[migrate] start` nunca apareceram nos logs do Render apesar dos cliques, e (b) o nosso `try/catch` interno no handler nunca apanhou. O alert no frontend mostrava só `err.error` ("Internal Server Error") e escondia o `message` informativo.
+
+**Outras rotas afetadas pelo mesmo padrão (POSTs sem body com Content-Type JSON):**
+- `POST /api/leads/erp-prospects/:id/discard` ([Dashboard.tsx:554](apps/web/src/app/Dashboard.tsx:554))
+- `POST /api/leads/:id/enrich` ([LeadPageV2.tsx:145](apps/web/src/app/LeadPageV2.tsx:145))
+
+**Mitigação:** parser passa a tratar body vazio como `{}`. Defensive coding numa única alteração em [index.ts](apps/api/src/index.ts) que cobre todas as rotas afetadas. Aplicado neste mesmo PR.
+
+**Lição para auditorias futuras:** validar parsers/middlewares com requests reais (POST vazio, GET com query strings malformadas) — análise estática só do código do handler perde este género de bug porque o erro acontece num layer acima.
 
 ---
 
