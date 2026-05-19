@@ -24,12 +24,21 @@ O Ai CRM cumpre o seu propósito funcional — ingestão de signals dos agentes 
 
 ### A. Segurança
 
-#### A1. API Fastify sem qualquer autenticação — `[CRÍTICO][S]`
-A API está em `https://ai-crm-api-pcdn.onrender.com` totalmente exposta. O middleware do Next.js ([apps/web/src/middleware.ts](apps/web/src/middleware.ts)) só protege as **páginas** do `apps/web` — todas as chamadas reais ao backend (`fetch(API + '/api/leads/...')` em [apps/web/src/app/Dashboard.tsx:5](apps/web/src/app/Dashboard.tsx:5) e [LeadPageV2.tsx:5](apps/web/src/app/LeadPageV2.tsx:5)) vão diretamente para o serviço Render do API, **sem passar pela auth do web**. O único endpoint da API com autenticação é `POST /api/ingest/gobii` ([apps/api/src/routes/ingest.ts:401-425](apps/api/src/routes/ingest.ts:401)).
+#### A1. API Fastify sem qualquer autenticação — `[CRÍTICO][S]` ✅ resolvido (PRs #7, #8, #10, #11)
+A API estava em `https://ai-crm-api-pcdn.onrender.com` totalmente exposta. O middleware do Next.js ([apps/web/src/middleware.ts](apps/web/src/middleware.ts)) só protege as **páginas** do `apps/web` — todas as chamadas reais ao backend (`fetch(API + '/api/leads/...')` em [apps/web/src/app/Dashboard.tsx:5](apps/web/src/app/Dashboard.tsx:5) e [LeadPageV2.tsx:5](apps/web/src/app/LeadPageV2.tsx:5)) vão diretamente para o serviço Render do API, **sem passar pela auth do web**. O único endpoint da API com autenticação é `POST /api/ingest/gobii` ([apps/api/src/routes/ingest.ts:401-425](apps/api/src/routes/ingest.ts:401)).
 
 Isto significa que qualquer pessoa com a URL pode listar leads, alterar status, criar utilizadores ADMIN (`POST /api/users` em [apps/api/src/routes/leads.ts:241](apps/api/src/routes/leads.ts:241)), apagar contactos, alterar empresas, enviar emails via Gmail, gastar a quota da Apollo API, etc. Em particular `app.register(cors, { origin: true })` em [apps/api/src/index.ts:9](apps/api/src/index.ts:9) ainda agrava — aceita qualquer origin com credentials, sem allowlist.
 
-**Mitigação:** Adicionar um hook global `preHandler` que valide um header `Authorization: Bearer ${API_SECRET_KEY}` (já existe `API_SECRET_KEY: generateValue: true` em [render.yaml:21](render.yaml:21)) ou um cookie HMAC. O frontend fica encarregado de injetar o token (env var `NEXT_PUBLIC_API_TOKEN` é mau porque vai para o bundle — preferível um proxy server-side em `apps/web/src/app/api/[...path]/route.ts` que faz o forward com a chave guardada server-side).
+**Mitigação aplicada (final, 2026-05-19):** server-side proxy em `apps/web/src/app/api/proxy/[[...path]]/route.ts` que injeta `Authorization: Bearer ${API_SECRET_KEY}` no forward (PRs #7 + #8/#10). Fastify `preHandler` em `apps/api/src/index.ts` exige esse Bearer em todas as rotas `/api/*` (PR #11). Exceções: `/health` (sem auth) e `/api/ingest/gobii` (continua a validar o seu próprio `GOBII_WEBHOOK_TOKEN`).
+
+**Historial doloroso:** primeira tentativa (PRs #7 + #8) foi revertida (PR #9) porque o Render free tier rate-limita tráfego inter-service, e o proxy + Promise.all de 6 fetches no Dashboard disparou 429. O Miguel upgraded o `ai-crm-api-pcdn` para plano Starter, o proxy foi re-aplicado (PR #10) e A1.b.2 fechou em PR #11. A mudança de plano teve um efeito colateral grave — o Render re-processou o `render.yaml` com `fromDatabase: name: ai-crm-db` (nome desatualizado vs serviço real) e criou silenciosamente uma BD nova vazia, atribuindo-a ao api; os dados originais ficaram intactos em `ai-crm-db` mas o api ficou ligado à BD nova. Corrigido manualmente substituindo o `DATABASE_URL` no env do api pelo Internal URL da BD original.
+
+Validado com curl pós-deploy:
+```
+curl https://ai-crm-api-pcdn.onrender.com/health         → 200 {"status":"ok",...}
+curl https://ai-crm-api-pcdn.onrender.com/api/leads      → 401 {"error":"Unauthorized"}
+curl https://ai-crm-api-pcdn.onrender.com/api/stats      → 401 {"error":"Unauthorized"}
+```
 
 #### A2. `POST /api/admin/reset` com gating partido — `[CRÍTICO][XS]`
 [apps/api/src/routes/leads.ts:635-651](apps/api/src/routes/leads.ts:635) tem:
@@ -57,18 +66,18 @@ O cookie **é** o secret. Se vazar (XSS, log indevido, screenshot, browser compr
 
 **Mitigação:** gerar um token aleatório por sessão (`crypto.randomBytes(32).toString('base64url')`), guardá-lo num registo `Session` na BD com `userId` + `expiresAt`, e validar o cookie contra esse registo. Como bónus, o `x-user-name` enviado para o backend passa a ser confiável (vem do servidor, não do client em [LeadPageV2.tsx:181](apps/web/src/app/LeadPageV2.tsx:181) onde está hardcoded como `'Utilizador'`).
 
-#### A4. Endpoints de debug e admin sem autenticação no API — `[CRÍTICO][S]`
-Todos sem auth e expostos em produção (mais grave dado A1):
-- `GET /api/leads/erp-prospects/:signalId/debug` — [routes/leads.ts:46-52](apps/api/src/routes/leads.ts:46) (vazamento de IDs internos)
-- `GET /api/debug/email` — [routes/leads.ts:613-622](apps/api/src/routes/leads.ts:613) (revela presença/valor de `GMAIL_USER`)
-- `POST /api/admin/resolve-migration` — [routes/leads.ts:624-633](apps/api/src/routes/leads.ts:624) (executa `$executeRawUnsafe` em `_prisma_migrations`; permite a qualquer um forçar re-aplicação ou rollback de migrations)
-- `POST /api/admin/dedup-leads` — [routes/leads.ts:834-855](apps/api/src/routes/leads.ts:834) (apaga leads em prod)
-- `POST /api/admin/reset` — ver A2
-- `POST /api/users` — [routes/leads.ts:241](apps/api/src/routes/leads.ts:241) (cria utilizadores ADMIN)
-- `POST /api/leads/:id/enrich` — [routes/leads.ts:654](apps/api/src/routes/leads.ts:654) (sem rate limit, gasta quota Apollo paga)
-- `POST /api/leads/:id/send-email` — [routes/leads.ts:503](apps/api/src/routes/leads.ts:503) (envia emails via Gmail SMTP)
+#### A4. Endpoints de debug e admin sem autenticação no API — `[CRÍTICO][S]` ✅ resolvido
+Endpoints originalmente sem auth e expostos em produção:
+- ~~`GET /api/leads/erp-prospects/:signalId/debug`~~ — **apagado** (A1.c)
+- ~~`GET /api/debug/email`~~ — **apagado** (A1.c)
+- ~~`POST /api/admin/resolve-migration`~~ — **apagado** (A1.c; ver também C2)
+- `POST /api/admin/dedup-leads` — **mantido**, agora protegido pelo Bearer global (A1.b.2). Utilidade real para limpeza pontual.
+- `POST /api/admin/reset` — gating fail-closed em A2 (PR #2) + Bearer global em A1.b.2. Mantido para emergência mas duplamente protegido.
+- `POST /api/users` — protegido por Bearer global em A1.b.2.
+- `POST /api/leads/:id/enrich` — protegido por Bearer global em A1.b.2. Rate-limit interno fica para futuro.
+- `POST /api/leads/:id/send-email` — protegido por Bearer global em A1.b.2.
 
-**Mitigação:** depois de A1 estar feito, todos ficam protegidos. Os de `/api/admin/*` devem além disso exigir um segundo header (ex: `X-Admin-Token` distinto), e os endpoints `/debug/*` devem ser removidos (já estão a poluir o repo com `console.log` em [routes/leads.ts:69-105](apps/api/src/routes/leads.ts:69)).
+**Mitigação aplicada:** A1.b.2 (PR #11) adicionou auth obrigatória em `/api/*`. A1.c apagou os 3 endpoints de debug/migration que eram desnecessários. Os admin endpoints úteis ficaram com a defesa em camadas (gating próprio + Bearer global).
 
 #### A5. Webhook token aceito via query string e body — `[ALTO][S]`
 [apps/api/src/routes/ingest.ts:404-416](apps/api/src/routes/ingest.ts:404) aceita o token de `qry.secret`, `qry.token`, `qry.key` e `body.webhookSecret`, `body.secret`, `body.token`, `body.key`. Tokens em query string ficam em logs de proxy, logs de access do Render, no histórico do browser de quem fizer debug, etc. Aceitar via body é OK; via query string é leak vector.
@@ -134,8 +143,8 @@ Confirmar B1. Convenção segura para `ALTER TYPE ADD VALUE` em Postgres + Prism
 
 Já é o que [000002](prisma/migrations/20260221000002_update_lead_status/migration.sql) e [000003](prisma/migrations/20260221000003_migrate_lost_to_discarded/migration.sql) tentam. Mas pelos vistos a 000002 falhou em prod uma vez e ficou em estado pendente → arquivar processo (CHANGELOG ou script `scripts/migration-recovery.md`) para resolver futuros casos.
 
-#### C2. `_prisma_migrations` manipulado por endpoint HTTP — `[ALTO][S]`
-`POST /api/admin/resolve-migration` ([routes/leads.ts:624](apps/api/src/routes/leads.ts:624)) faz `$executeRawUnsafe` na tabela de migrations. É um patch para o problema acima mas é um vector de ataque sério (ver A4) e um anti-padrão (a tabela não devia ser modificada via API). Apagar este endpoint depois de resolver C1.
+#### C2. `_prisma_migrations` manipulado por endpoint HTTP — `[ALTO][S]` ✅ resolvido (A1.c)
+`POST /api/admin/resolve-migration` apagado. `apps/api/fix-migration.js` (script com mesmo propósito) também apagado. Se voltarmos a precisar de marcar uma migration como rolled-back, usar `psql` direto com as credenciais do dashboard.
 
 #### C3. `apps/api/scripts/dedup-leads.ts` indica histórico de duplicação em prod — `[MÉDIO][M]`
 A existência de [dedup-leads.ts](apps/api/scripts/dedup-leads.ts) e do endpoint gémeo [routes/leads.ts:834](apps/api/src/routes/leads.ts:834) indica que dois leads para a mesma empresa são criados acidentalmente — provavelmente porque `Company.domain @unique` mas `normalizeDomain()` ([routes/ingest.ts:22](apps/api/src/routes/ingest.ts:22)) gera domínios sintéticos do tipo `<slug>.unknown`/`<slug>.rfp.pt` quando o agente não envia domínio, e dois agentes diferentes podem gerar slugs diferentes para a mesma empresa. Resultado: duas Companies, dois Leads. O `reclassify` em [routes/leads.ts:799-810](apps/api/src/routes/leads.ts:799) já tem um workaround que verifica também por nome insensível, mas o `/migrate` ([routes/leads.ts:79](apps/api/src/routes/leads.ts:79)) não tem.

@@ -42,15 +42,6 @@ export async function leadsRoutes(app: FastifyInstance) {
     return reply.send(filtered);
   });
 
-  // GET /api/leads/erp-prospects/:signalId/debug — diagnóstico temporário
-  app.get('/api/leads/erp-prospects/:signalId/debug', async (req, reply) => {
-    const { signalId } = req.params as { signalId: string };
-    const signal = await prisma.leadSignal.findUnique({ where: { id: signalId } });
-    if (!signal) return reply.send({ error: 'signal not found', signalId });
-    const lead = await prisma.lead.findUnique({ where: { companyId: signal.companyId } });
-    return reply.send({ signal: { id: signal.id, triggerType: signal.triggerType, companyId: signal.companyId, score_final: signal.score_final }, existingLead: lead ? { id: lead.id, status: lead.status } : null });
-  });
-
   // GET /api/leads/erp-prospects — DEVE ficar antes de /:id para evitar conflito de rota
   app.get('/api/leads/erp-prospects', async (req, reply) => {
     const signals = await prisma.leadSignal.findMany({
@@ -625,29 +616,6 @@ export async function leadsRoutes(app: FastifyInstance) {
       logger.error({ err: err?.message || err }, 'send-email unexpected error');
       return reply.status(500).send({ error: 'Erro inesperado', detail: err?.message || String(err) });
     }
-  });
-
-  // GET /api/debug/email — diagnóstico do sistema de email
-  app.get('/api/debug/email', async (req, reply) => {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    return reply.send({
-      gmail_user_configured: !!gmailUser,
-      gmail_user: gmailUser || null,
-      gmail_pass_configured: !!gmailPass,
-      node_version: process.version,
-    });
-  });
-
-  app.post('/api/admin/resolve-migration', async (req, reply) => {
-    // Resolve failed migration 20260221000002 by marking it as rolled back
-    await prisma.$executeRawUnsafe(`
-      UPDATE "_prisma_migrations" 
-      SET rolled_back_at = NOW(), finished_at = NULL
-      WHERE migration_name = '20260221000002_update_lead_status'
-      AND rolled_back_at IS NULL
-    `);
-    return reply.send({ message: 'Migration marked as rolled back, redeploy to re-apply' });
   });
 
   app.post('/api/admin/reset', async (req, reply) => {
