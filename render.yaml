@@ -1,3 +1,20 @@
+# ─── IMPORTANT — keep this in sync with reality ───────────────────────────────
+# The live services on Render are named with the suffix `-pcdn`:
+#   ai-crm-api-pcdn, ai-crm-web-pcdn, ai-crm-db (no suffix on the DB).
+# The names below (ai-crm-api / ai-crm-web) are the original blueprint names,
+# kept as-is to avoid the blueprint trying to create NEW services if we rename.
+# When binding env vars across services (fromService) or to the DB
+# (fromDatabase), the resolver matches by name — and on this account those
+# name lookups DON'T resolve to the actual `-pcdn` services. To prevent
+# silent breakage (the 2026-05-15 incident where Render created an empty
+# ai-crm-db-pcdn-amc2 because the fromDatabase binding couldn't find
+# `ai-crm-db`), every cross-service env var is now `sync: false`, meaning
+# the actual value lives in the Render dashboard, not in this yaml.
+# If/when the services get renamed to match this yaml, the `sync: false`
+# entries can become `fromService`/`fromDatabase` again — but until then,
+# treat the dashboard as the source of truth for those values.
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
   - type: web
     name: ai-crm-api
@@ -10,16 +27,48 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
+      # DATABASE_URL — managed manually in dashboard.
+      # Previously: fromDatabase { name: ai-crm-db, property: connectionString }.
+      # That binding caused Render to create an empty `ai-crm-db-pcdn-amc2`
+      # when the api plan changed (2026-05-15 incident). Now the dashboard
+      # holds the real Internal Database URL for ai-crm-db.
       - key: DATABASE_URL
-        fromDatabase:
-          name: ai-crm-db
-          property: connectionString
+        sync: false
+
       - key: MQL_THRESHOLD
         value: "70"
       - key: SQL_THRESHOLD
         value: "100"
+
+      # API_SECRET_KEY — Bearer token required by every /api/* route (A1.b.2).
+      # Generated once on first deploy. The same value MUST be set on the
+      # ai-crm-web-pcdn service (also sync: false there) so the proxy can
+      # inject it on forward. If they drift, every fetch via /api/proxy
+      # returns 401 and the dashboard goes blank. Verified 2026-05-19.
       - key: API_SECRET_KEY
         generateValue: true
+
+      # Webhook auth for the Gobii agents (validated per-request inside the
+      # /api/ingest/gobii handler, not by the Bearer preHandler).
+      - key: GOBII_WEBHOOK_TOKEN
+        sync: false
+      - key: GOBII_WEBHOOK_TOKEN_SHORT
+        sync: false
+
+      # Outbound integrations — server-side secrets, NOT for the bundle.
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+
+      # Optional destructive-action guard. If set, /api/admin/reset requires
+      # the body { confirm: <this value> }. If unset, the endpoint always 401s
+      # (fail-closed gating fixed in A2 / PR #2).
+      - key: RESET_SECRET
+        sync: false
 
   - type: web
     name: ai-crm-web
@@ -32,19 +81,28 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # IMPORTANT: keep this as a literal value. Previously this used
-      # `fromService.property: host` against `name: ai-crm-api`, but the
-      # live service is `ai-crm-api-pcdn` (renamed outside the IaC). The
-      # `property: host` was resolving to just "ai-crm-api-pcdn" — the bare
-      # service name without `.onrender.com` and without a scheme — which
-      # is not a usable URL. The browser ended up treating
-      # `fetch('ai-crm-api-pcdn/api/leads')` as a path relative to the web
-      # origin and every request returned 404. The Render dashboard env
-      # var on ai-crm-web-pcdn was set manually to the value below to fix
-      # production; this commit aligns the IaC with what's already live.
-      # If the API service is ever renamed, update this literal too.
+
+      # API base URL — literal because fromService { property: host } on this
+      # Render account resolves to just the bare service name without
+      # `.onrender.com`, which the browser then treats as a relative path.
+      # If the api service is ever renamed, update this literal too.
       - key: NEXT_PUBLIC_API_URL
         value: https://ai-crm-api-pcdn.onrender.com
+
+      # API_SECRET_KEY — server-side only (NOT NEXT_PUBLIC_*) so it stays out
+      # of the client bundle. Used by the proxy at /api/proxy to inject
+      # Authorization: Bearer on outbound forward to the Fastify api.
+      # MUST match the value set on ai-crm-api-pcdn.
+      - key: API_SECRET_KEY
+        sync: false
+
+      # Shared-password auth for the web UI (until A3 lands per-user sessions).
+      # Cookie crm_session is set to SESSION_SECRET on successful login and
+      # checked verbatim by the Next middleware on each request.
+      - key: CRM_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
 
 databases:
   - name: ai-crm-db
