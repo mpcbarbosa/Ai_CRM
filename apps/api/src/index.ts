@@ -66,6 +66,31 @@ app.addHook('preValidation', async (req) => {
   }
 });
 
+// A1.b.2: require Authorization: Bearer ${API_SECRET_KEY} on every /api/* call.
+// Exceptions:
+//   - /health: no auth, used by Render's health check and by us for sanity probes.
+//   - /api/ingest/gobii: validates its own GOBII_WEBHOOK_TOKEN per request — the
+//     Gobii agents don't have API_SECRET_KEY and shouldn't.
+// In dev (no API_SECRET_KEY in env) the hook lets requests through with a
+// warning so local development without secrets keeps working.
+app.addHook('preHandler', async (req, reply) => {
+  if (req.url === '/health') return;
+  if (req.url.startsWith('/api/ingest/gobii')) return;
+  if (!req.url.startsWith('/api/')) return;
+
+  const expectedToken = process.env.API_SECRET_KEY;
+  if (!expectedToken) {
+    logger.warn({ url: req.url }, 'API_SECRET_KEY not configured; allowing unauthenticated request');
+    return;
+  }
+  const auth = (req.headers['authorization'] as string) || '';
+  const match = /^Bearer\s+(.+)$/i.exec(auth);
+  if (!match || match[1].trim() !== expectedToken) {
+    logger.warn({ url: req.url, hasAuth: !!auth }, 'Rejected unauthenticated request');
+    return reply.code(401).send({ error: 'Unauthorized' });
+  }
+});
+
 app.register(ingestRoutes);
 app.register(leadsRoutes);
 app.register(settingsRoutes);
