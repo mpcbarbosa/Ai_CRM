@@ -8,17 +8,17 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(COMMERCIAL)
-  avatar    String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  auditLogs AuditLog[]
+  id         String     @id @default(cuid())
+  email      String     @unique
+  name       String
+  role       UserRole   @default(COMMERCIAL)
+  avatar     String?
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  auditLogs  AuditLog[]
   activities Activity[]
-  leads     Lead[]   @relation("AssignedLeads")
+  leads      Lead[]     @relation("AssignedLeads")
 }
 
 enum UserRole {
@@ -28,46 +28,46 @@ enum UserRole {
 }
 
 model Company {
-  id            String    @id @default(cuid())
-  name          String
-  legalName     String?
-  nif           String?
-  domain        String    @unique
-  website       String?
-  country       String?
-  sector        String?
-  subsector     String?
-  size          String?
-  description   String?
-  revenue       String?
-  revenueValue  Float?
-  employeeCount Int?
-  employeeRange String?
-  triggerEvent  String?
-  erpOpportunity String?
-  numberOfSites Int?
-  linkedinUrl   String?
-  phone         String?
-  email         String?
-  technologies  String[]
+  id                   String       @id @default(cuid())
+  name                 String
+  legalName            String?
+  nif                  String?
+  domain               String       @unique
+  website              String?
+  country              String?
+  sector               String?
+  subsector            String?
+  size                 String?
+  description          String?
+  revenue              String?
+  revenueValue         Float?
+  employeeCount        Int?
+  employeeRange        String?
+  triggerEvent         String?
+  erpOpportunity       String?
+  numberOfSites        Int?
+  linkedinUrl          String?
+  phone                String?
+  email                String?
+  technologies         String[]
   // Address
-  street        String?
-  postalCode    String?
-  city          String?
-  municipality  String?
-  district      String?
+  street               String?
+  postalCode           String?
+  city                 String?
+  municipality         String?
+  district             String?
   // Digital maturity
   digitalMaturityScore Int?
   // Group structure
-  partOfGroup   Boolean?
-  parentCompany String?
+  partOfGroup          Boolean?
+  parentCompany        String?
   // Enrichment
-  enrichedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  contacts      Contact[]
-  signals       LeadSignal[]
-  lead          Lead?
+  enrichedAt           DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  contacts             Contact[]
+  signals              LeadSignal[]
+  lead                 Lead?
 }
 
 model Contact {
@@ -88,20 +88,29 @@ model Contact {
 }
 
 model LeadSignal {
-  id               String   @id @default(cuid())
-  companyId        String
-  agentName        String
-  triggerType      String
-  rawData          Json
-  score_trigger    Float    @default(0)
-  score_probability Float   @default(0)
-  score_final      Float    @default(0)
-  probability      Float?
-  summary          String?
-  sourceUrl        String?
-  detectedAt       DateTime @default(now())
-  createdAt        DateTime @default(now())
-  company          Company  @relation(fields: [companyId], references: [id])
+  id                String   @id @default(cuid())
+  companyId         String
+  agentName         String
+  triggerType       String
+  rawData           Json
+  score_trigger     Float    @default(0)
+  score_probability Float    @default(0)
+  score_final       Float    @default(0)
+  probability       Float?
+  summary           String?
+  sourceUrl         String?
+  detectedAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  company           Company  @relation(fields: [companyId], references: [id])
+
+  // F3 indexes (2026-05-19):
+  // - triggerType filter is used by /api/signals, /api/sectors,
+  //   /api/leads/erp-prospects, /api/signals/employment
+  // - companyId+createdAt is used to fetch the latest signal per company
+  //   (Dashboard pipeline view's `include: { signals: { orderBy: { createdAt:
+  //   'desc' }, take: 1 } }`)
+  @@index([triggerType])
+  @@index([companyId, createdAt(sort: Desc)])
 }
 
 enum LeadStatus {
@@ -124,53 +133,62 @@ enum ActivityType {
 }
 
 model Activity {
-  id            String       @id @default(cuid())
-  leadId        String
-  type          ActivityType
-  title         String
-  notes         String?
-  nextAction    String?
-  nextActionAt  DateTime?
-  doneAt        DateTime     @default(now())
-  createdBy     String?
-  userId        String?
-  createdAt     DateTime     @default(now())
-  lead          Lead         @relation(fields: [leadId], references: [id])
-  user          User?        @relation(fields: [userId], references: [id])
+  id           String       @id @default(cuid())
+  leadId       String
+  type         ActivityType
+  title        String
+  notes        String?
+  nextAction   String?
+  nextActionAt DateTime?
+  doneAt       DateTime     @default(now())
+  createdBy    String?
+  userId       String?
+  createdAt    DateTime     @default(now())
+  lead         Lead         @relation(fields: [leadId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  // F3: lead detail / GET /api/leads/:id/activities lists by leadId
+  // ordered by createdAt desc.
+  @@index([leadId, createdAt(sort: Desc)])
 }
 
 model Lead {
-  id                  String     @id @default(cuid())
-  companyId           String     @unique
-  status              LeadStatus @default(NEW)
-  marketingQualified  Boolean    @default(false)
-  salesQualified      Boolean    @default(false)
-  totalScore          Float      @default(0)
-  assignedToId        String?
-  tags                String[]   @default([])
-  notes               String?
-  lostReason          String?
-  priority            String     @default("NORMAL")
-  replacementTier     String?
-  replacementScore    Float?
+  id                   String         @id @default(cuid())
+  companyId            String         @unique
+  status               LeadStatus     @default(NEW)
+  marketingQualified   Boolean        @default(false)
+  salesQualified       Boolean        @default(false)
+  totalScore           Float          @default(0)
+  assignedToId         String?
+  tags                 String[]       @default([])
+  notes                String?
+  lostReason           String?
+  priority             String         @default("NORMAL")
+  replacementTier      String?
+  replacementScore     Float?
   replacementRationale String?
-  attackAngle         String?
-  recommendedProduct  String?
-  entryRole           String?
-  nextContactDate     DateTime?
-  nurtureReason       String?
-  nurtureNotes        String?
-  lastActivityDate    DateTime   @default(now())
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  company             Company    @relation(fields: [companyId], references: [id])
-  assignedTo          User?      @relation("AssignedLeads", fields: [assignedToId], references: [id])
-  opportunities       Opportunity[]
-  activities          Activity[]
-  auditLogs           AuditLog[]
-  scoreHistory        ScoreHistory[]
-  leadNotes           Note[]     @relation("LeadNotes")
-  leadTasks           Task[]     @relation("LeadTasks")
+  attackAngle          String?
+  recommendedProduct   String?
+  entryRole            String?
+  nextContactDate      DateTime?
+  nurtureReason        String?
+  nurtureNotes         String?
+  lastActivityDate     DateTime       @default(now())
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  company              Company        @relation(fields: [companyId], references: [id])
+  assignedTo           User?          @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  opportunities        Opportunity[]
+  activities           Activity[]
+  auditLogs            AuditLog[]
+  scoreHistory         ScoreHistory[]
+  leadNotes            Note[]         @relation("LeadNotes")
+  leadTasks            Task[]         @relation("LeadTasks")
+
+  // F3: /api/stats counts by status, /api/leads/nurturing filters by
+  // status='NURTURING' and orders by nextContactDate asc.
+  @@index([status])
+  @@index([nextContactDate])
 }
 
 enum OpportunityStage {
@@ -223,6 +241,9 @@ model AuditLog {
   createdAt DateTime    @default(now())
   lead      Lead        @relation(fields: [leadId], references: [id])
   user      User?       @relation(fields: [userId], references: [id])
+
+  // F3: /api/leads/:id/audit lists by leadId ordered by createdAt desc.
+  @@index([leadId, createdAt(sort: Desc)])
 }
 
 model ScoreHistory {
@@ -233,6 +254,9 @@ model ScoreHistory {
   agentName   String?
   createdAt   DateTime @default(now())
   lead        Lead     @relation(fields: [leadId], references: [id])
+
+  // F3: /api/leads/:id/score-history lists by leadId ordered by createdAt asc.
+  @@index([leadId, createdAt])
 }
 
 model Setting {
@@ -250,6 +274,9 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   lead      Lead     @relation("LeadNotes", fields: [leadId], references: [id])
+
+  // F3: /api/leads/:id/notes lists by leadId ordered by createdAt desc.
+  @@index([leadId, createdAt(sort: Desc)])
 }
 
 model Task {
@@ -265,4 +292,7 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   lead        Lead      @relation("LeadTasks", fields: [leadId], references: [id])
+
+  // F3: /api/leads/:id/tasks lists by leadId ordered by done asc, dueAt asc.
+  @@index([leadId, done, dueAt])
 }

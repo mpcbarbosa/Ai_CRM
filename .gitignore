@@ -4,4 +4,8 @@ dist/
 .env.local
 *.log
 .next/
-prisma/migrations/
+
+# NOTE: prisma/migrations/ MUST be committed (Render's `prisma migrate deploy`
+# in apps/api startCommand needs them at runtime). Used to be ignored here,
+# which caused git to skip newly-created migrations; the old migrations
+# survived only because they were already tracked. Don't add it back.
