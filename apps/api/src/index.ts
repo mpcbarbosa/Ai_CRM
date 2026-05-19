@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { ingestRoutes } from './routes/ingest';
@@ -5,8 +6,40 @@ import { settingsRoutes } from './routes/settings';
 import { leadsRoutes } from './routes/leads';
 import { logger } from './lib/logger';
 
+// Initialize Sentry early so unhandled exceptions captured by setErrorHandler
+// below get reported. No-op if SENTRY_DSN is unset (typical for local dev).
+// G2 in docs/revisao-geral.md.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    // Errors are always captured at 100%; traces sampled to keep free-tier
+    // quota healthy. Adjust if we ever need fuller request tracing.
+    tracesSampleRate: 0.1,
+  });
+  logger.info('Sentry initialized');
+}
+
 const app = Fastify({ logger: false });
 app.register(cors, { origin: true });
+
+// Send unhandled exceptions to Sentry while preserving Fastify's default
+// error response (so the client behavior stays identical). Only fires for
+// errors that bubbled out of handlers — intentional reply.code(4xx).send()
+// is not an exception and doesn't reach here.
+app.setErrorHandler((error, request, reply) => {
+  if (process.env.SENTRY_DSN) {
+    Sentry.withScope((scope) => {
+      scope.setTag('http.url', request.url);
+      scope.setTag('http.method', request.method);
+      scope.setContext('request', {
+        userAgent: request.headers['user-agent'] || 'unknown',
+      });
+      Sentry.captureException(error);
+    });
+  }
+  reply.send(error);
+});
 
 // Custom JSON parser that accepts both objects and arrays
 app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
