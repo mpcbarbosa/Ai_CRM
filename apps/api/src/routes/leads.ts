@@ -7,6 +7,15 @@ const nodemailer = require('nodemailer');
 
 export async function leadsRoutes(app: FastifyInstance) {
   app.get('/api/leads', async (req, reply) => {
+    // D5: honor ?limit= (clamped to a sane range). Before this the parameter
+    // sent by the Dashboard (?limit=200) was silently ignored — findMany ran
+    // unbounded. With ~1.5k leads in prod the response was 100s of kB per
+    // dashboard load, and growing linearly with ingestion.
+    const query = req.query as Record<string, string>;
+    const rawLimit = Number(query.limit);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), 1000)
+      : 200;
     const leads = await prisma.lead.findMany({
       include: {
         company: {
@@ -16,6 +25,7 @@ export async function leadsRoutes(app: FastifyInstance) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: limit,
     });
     // Pipeline only shows LeadScanner leads (other agents have their own tabs)
     const PIPELINE_TRIGGERS = ['C_LEVEL_CHANGE', 'CLEVEL_CHANGE', 'RFP_SIGNAL', 'EXPANSION_SIGNAL', 'SECTOR_INVESTMENT', 'ERP_PROSPECT', 'EMPLOYMENT'];
@@ -352,7 +362,8 @@ export async function leadsRoutes(app: FastifyInstance) {
   });
 
   app.delete('/api/leads/:id/activities/:activityId', async (req, reply) => {
-    const { activityId } = req.params as { id: string; activityId: string };
+    // D6: type declared `id` but only `activityId` is used — dropped from cast.
+    const { activityId } = req.params as { activityId: string };
     await prisma.activity.delete({ where: { id: activityId } });
     return reply.send({ deleted: true });
   });
@@ -414,11 +425,18 @@ export async function leadsRoutes(app: FastifyInstance) {
     const where = query.triggerType
       ? { triggerType: query.triggerType }
       : { triggerType: { notIn: EXCLUDED } };
+    // D5: previously take was hardcoded to 1000, ignoring the ?limit= sent
+    // by the Dashboard. Keep 1000 as the upper bound (and the default when
+    // no limit is provided, to preserve existing behavior).
+    const rawLimit = Number(query.limit);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), 1000)
+      : 1000;
     const signals = await prisma.leadSignal.findMany({
       where,
       include: { company: true },
       orderBy: { createdAt: 'desc' },
-      take: 1000,
+      take: limit,
     });
     return reply.send(signals);
   });
