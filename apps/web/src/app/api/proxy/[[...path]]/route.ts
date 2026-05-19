@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifySession } from '@/lib/session';
 
 // Server-side proxy that forwards requests from the browser to the Fastify
 // API. This is part of A1 in docs/revisao-geral.md — closing the
@@ -39,21 +40,30 @@ function buildUpstreamUrl(
 // Only forward an allowlisted set of headers. We deliberately drop `host`,
 // `origin`, `referer`, `cookie`, and anything related to caching so that the
 // upstream sees a clean, predictable request.
-function pickForwardHeaders(req: NextRequest): Headers {
+// Takes an optional userName resolved from the session cookie below.
+function pickForwardHeaders(req: NextRequest, userName: string | null): Headers {
   const out = new Headers();
   const ct = req.headers.get('content-type');
   if (ct) out.set('content-type', ct);
-  const un = req.headers.get('x-user-name');
-  if (un) out.set('x-user-name', un);
+  // A3: the userName now comes from the session JWT, not from a header
+  // sent by the client (which the client could forge). The legacy
+  // x-user-name header from the client is ignored.
+  if (userName) out.set('x-user-name', userName);
   const ui = req.headers.get('x-user-id');
   if (ui) out.set('x-user-id', ui);
   // Inject the shared secret so the Fastify side can authenticate the proxy.
   // We never read this on the client (it's server-side env only) so it stays
-  // out of the browser bundle. While A1.b.2 is not yet deployed, the API
-  // ignores the extra header — this commit is intentionally a no-op in prod.
+  // out of the browser bundle.
   const token = process.env.API_SECRET_KEY;
   if (token) out.set('authorization', `Bearer ${token}`);
   return out;
+}
+
+async function getUserNameFromCookie(req: NextRequest): Promise<string | null> {
+  const cookie = req.cookies.get('crm_session');
+  if (!cookie?.value) return null;
+  const payload = await verifySession(cookie.value);
+  return payload?.userName ?? null;
 }
 
 async function forward(
@@ -63,10 +73,12 @@ async function forward(
   const url = new URL(req.url);
   const upstream = buildUpstreamUrl(params.path, url.search);
 
+  const userName = await getUserNameFromCookie(req);
+
   const hasBody = !['GET', 'HEAD'].includes(req.method);
   const init: RequestInit = {
     method: req.method,
-    headers: pickForwardHeaders(req),
+    headers: pickForwardHeaders(req, userName),
     body: hasBody ? await req.text() : undefined,
     redirect: 'manual',
   };
