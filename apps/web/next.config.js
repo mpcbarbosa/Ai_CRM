@@ -1,4 +1,5 @@
 const path = require('path');
+const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -17,6 +18,14 @@ const nextConfig = {
     // Skip prerendering of not-found and error pages
     missingSuspenseWithCSRBailout: false,
   }
-}
+};
 
-module.exports = nextConfig
+// Wrap with Sentry config. Without org/project/authToken in env, source map
+// upload is skipped silently — the rest (instrumentation, error capture)
+// still works. Set SENTRY_ORG / SENTRY_PROJECT / SENTRY_AUTH_TOKEN env vars
+// on Render later if we want source maps in Sentry. G2 in docs/revisao-geral.md.
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  // Don't break the build if Sentry CLI can't reach Sentry (e.g., no auth).
+  errorHandler: () => {},
+});
