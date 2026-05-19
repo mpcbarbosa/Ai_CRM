@@ -860,15 +860,22 @@ export async function leadsRoutes(app: FastifyInstance) {
     const { content, createdBy } = req.body as { content: string; createdBy?: string };
     if (!content?.trim()) return reply.status(400).send({ error: 'Conteudo obrigatorio' });
 
+    // A3 (2026-05-19): header takes precedence over body. The header is set
+    // by the Next.js proxy from the verified JWT (trusted); body `createdBy`
+    // could be forged by anyone with the API token. Before this fix, the body
+    // value (frontend hardcoded 'Utilizador') overrode the real user name.
+    const headerUserName = (req.headers['x-user-name'] as string)?.trim();
+    const userName = headerUserName || createdBy?.trim() || 'Utilizador';
+
     // Extract @mentions
     const mentions = [...content.matchAll(/@(\w+)/g)].map(m => m[1]);
 
     const note = await (prisma as any).note.create({
-      data: { leadId: id, content, mentions, createdBy: createdBy || 'Utilizador' },
+      data: { leadId: id, content, mentions, createdBy: userName },
     });
 
     await prisma.auditLog.create({
-      data: { leadId: id, userName: createdBy || 'Utilizador', action: 'NOTE_ADDED', details: { preview: content.substring(0, 100) } },
+      data: { leadId: id, userName, action: 'NOTE_ADDED', details: { preview: content.substring(0, 100) } },
     });
 
     return reply.status(201).send(note);
@@ -899,6 +906,10 @@ export async function leadsRoutes(app: FastifyInstance) {
     const { title, description, dueAt, assignedTo, createdBy } = req.body as any;
     if (!title?.trim()) return reply.status(400).send({ error: 'Titulo obrigatorio' });
 
+    // A3: header from JWT-trusted proxy wins over client-supplied body.
+    const headerUserName = (req.headers['x-user-name'] as string)?.trim();
+    const userName = headerUserName || (typeof createdBy === 'string' ? createdBy.trim() : '') || 'Utilizador';
+
     const task = await (prisma as any).task.create({
       data: {
         leadId: id,
@@ -906,7 +917,7 @@ export async function leadsRoutes(app: FastifyInstance) {
         description: description || null,
         dueAt: dueAt ? new Date(dueAt) : null,
         assignedTo: assignedTo || null,
-        createdBy: createdBy || 'Utilizador',
+        createdBy: userName,
       },
     });
     return reply.status(201).send(task);
